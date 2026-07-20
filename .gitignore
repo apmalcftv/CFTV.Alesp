@@ -12,26 +12,46 @@
 
 # testing
 /coverage
+coverage/
 
 # next.js
 /.next/
 /out/
 
-# production
+# production / build artifacts
 /build
+build/
+dist/
 
 # misc
 .DS_Store
 *.pem
 
-# debug
+# debug / logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
+logs/
 
-# env files (can opt-in for committing if needed)
-.env*
+# temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# cache
+.cache/
+*.cache
+
+# env files (nunca versionar segredos reais — .env.example é a exceção)
+.env
+.env.local
+.env.production
+.env.development
+.env*.local
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +59,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# sistema operacional
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# VS Code (mantém extensions.json recomendado; ignora config pessoal)
+.vscode/*
+!.vscode/extensions.json
+
+# dados sensíveis de importação — nunca publicar (endereços/locais reais de
+# câmeras dentro do complexo da ALESP); o código do importador continua
+# versionado normalmente em scripts/ e src/services/import/
+supabase/import/
