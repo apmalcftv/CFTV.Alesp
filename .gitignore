@@ -74,3 +74,5 @@ $RECYCLE.BIN/
 # câmeras dentro do complexo da ALESP); o código do importador continua
 # versionado normalmente em scripts/ e src/services/import/
 supabase/import/
+
+.vercel

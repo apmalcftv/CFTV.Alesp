@@ -140,7 +140,7 @@ export function extrairDataNoTexto(
     const dia = Number(m1[1]);
     const mes = Number(m1[2]);
     if (mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31) {
-      let ano = m1[3]
+      const ano = m1[3]
         ? Number(m1[3].length === 2 ? `20${m1[3]}` : m1[3])
         : referencia.getFullYear();
       let d = new Date(Date.UTC(ano, mes - 1, dia));
