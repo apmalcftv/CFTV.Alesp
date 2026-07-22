@@ -205,3 +205,24 @@
     padding: 1rem;
   }
 }
+
+/* Destaque visual de linha no Grid Investigativo (aba Análise da
+   Ocorrência) — tingem discretamente o fundo da linha para varredura
+   visual rápida em análises longas. Reaproveita a coluna Marcador já
+   existente (ver DESTAQUE_CLASSE em grid-analise/tipos.ts), sem coluna
+   nova no banco. */
+.rdg-row.linha-destaque-evidencia {
+  background-color: color-mix(in oklch, var(--success) 14%, transparent);
+}
+.rdg-row.linha-destaque-atencao {
+  background-color: color-mix(in oklch, var(--warning) 14%, transparent);
+}
+.rdg-row.linha-destaque-exportado {
+  background-color: color-mix(in oklch, var(--chart-1) 14%, transparent);
+}
+.rdg-row.linha-destaque-sem-imagem {
+  background-color: color-mix(in oklch, var(--muted-foreground) 12%, transparent);
+}
+.rdg-row.linha-destaque-evento-importante {
+  background-color: color-mix(in oklch, var(--destructive) 16%, transparent);
+}

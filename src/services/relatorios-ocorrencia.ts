@@ -1,0 +1,102 @@
+import { createClient } from "@/lib/supabase/client";
+import type { Prioridade } from "@/types/domain";
+import type { RelatorioOcorrencia } from "@/types/relatorios-ocorrencia";
+
+export interface NovoRelatorioOcorrencia {
+  numero_memorando: string | null;
+  tipo_solicitacao_id: string | null;
+  solicitante_id: string | null;
+  departamento_id: string | null;
+  data_solicitacao: string;
+  prioridade: Prioridade;
+  operador_id: string | null;
+  data_limite: string | null;
+  classificacao: string | null;
+  data_fato: string | null;
+  hora_aproximada: string | null;
+  local_id: string | null;
+  descricao_fato: string;
+  tipo_ocorrencia_id: string | null;
+  pessoas_envolvidas: string | null;
+  observacoes_fato: string | null;
+}
+
+export interface RelatorioOcorrenciaDetalhe extends RelatorioOcorrencia {
+  tipo_solicitacao: { id: string; nome: string } | null;
+  solicitante: { id: string; nome: string } | null;
+  departamento: { id: string; nome: string } | null;
+  operador: { id: string; nome: string } | null;
+  local: {
+    id: string;
+    nome: string;
+    predio: { id: string; nome: string } | null;
+  } | null;
+  tipo_ocorrencia: { id: string; nome: string } | null;
+  concluido_por_perfil: { id: string; nome: string } | null;
+}
+
+const SELECT_DETALHE = `
+  *,
+  tipo_solicitacao:tipos_solicitacao(id, nome),
+  solicitante:solicitantes(id, nome),
+  departamento:departamentos(id, nome),
+  operador:perfis!relatorios_ocorrencia_operador_id_fkey(id, nome),
+  local:locais(id, nome, predio:predios(id, nome)),
+  tipo_ocorrencia:tipos_ocorrencia(id, nome),
+  concluido_por_perfil:perfis!relatorios_ocorrencia_concluido_por_fkey(id, nome)
+`;
+
+export async function listarRelatorios(): Promise<RelatorioOcorrenciaDetalhe[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("relatorios_ocorrencia")
+    .select(SELECT_DETALHE)
+    .order("numero", { ascending: false })
+    .limit(5000);
+  if (error) throw error;
+  return (data ?? []) as unknown as RelatorioOcorrenciaDetalhe[];
+}
+
+export async function buscarRelatorio(id: string): Promise<RelatorioOcorrenciaDetalhe> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("relatorios_ocorrencia")
+    .select(SELECT_DETALHE)
+    .eq("id", id)
+    .single();
+  if (error) throw error;
+  return data as unknown as RelatorioOcorrenciaDetalhe;
+}
+
+export async function criarRelatorio(
+  valores: NovoRelatorioOcorrencia
+): Promise<RelatorioOcorrencia> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from("relatorios_ocorrencia")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- sem Database gerado; ver dashboard.ts
+    .insert({ ...valores, criado_por: user?.id } as any)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as unknown as RelatorioOcorrencia;
+}
+
+export async function atualizarRelatorio(
+  id: string,
+  valores: Partial<RelatorioOcorrencia>
+): Promise<RelatorioOcorrencia> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("relatorios_ocorrencia")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- sem Database gerado; ver dashboard.ts
+    .update(valores as any)
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as unknown as RelatorioOcorrencia;
+}

@@ -2,6 +2,7 @@ import {
   Bell,
   Cctv,
   ClipboardList,
+  FileSearch,
   FileText,
   FolderCog,
   LayoutDashboard,
@@ -43,6 +44,13 @@ export const NAV_ITEMS: NavItem[] = [
     grupo: "Operação",
   },
   { titulo: "Ocorrências", href: "/ocorrencias", icone: ClipboardList, grupo: "Operação" },
+  {
+    titulo: "Relatórios de Ocorrências",
+    href: "/relatorios-ocorrencias",
+    icone: FileSearch,
+    papeis: TODOS_MENOS_EMPRESA,
+    grupo: "Operação",
+  },
   {
     titulo: "Executivo",
     href: "/executivo",
