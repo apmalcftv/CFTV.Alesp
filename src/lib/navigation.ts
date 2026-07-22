@@ -10,13 +10,14 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { PapelUsuario } from "@/types/domain";
+import { PAPEIS_COM_ACESSO_RELATORIOS_OCORRENCIA } from "@/lib/autorizacao";
 
 export interface NavItem {
   titulo: string;
   href: string;
   icone: LucideIcon;
   /** Papéis que veem este item — todos os papéis aprovados, se omitido */
-  papeis?: PapelUsuario[];
+  papeis?: readonly PapelUsuario[];
   /** Rótulo do grupo visual na sidebar (apenas apresentação) */
   grupo: "Operação" | "Análise" | "Sistema";
 }
@@ -48,7 +49,10 @@ export const NAV_ITEMS: NavItem[] = [
     titulo: "Relatórios de Ocorrências",
     href: "/relatorios-ocorrencias",
     icone: FileSearch,
-    papeis: TODOS_MENOS_EMPRESA,
+    // Papéis próprios do módulo (nunca Fiscal ALESP nem Empresa Contratada
+    // aqui) — fonte única em @/lib/autorizacao, não confundir com
+    // TODOS_MENOS_EMPRESA (que inclui fiscal_alesp e serve os outros itens).
+    papeis: PAPEIS_COM_ACESSO_RELATORIOS_OCORRENCIA,
     grupo: "Operação",
   },
   {

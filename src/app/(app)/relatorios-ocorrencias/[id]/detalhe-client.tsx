@@ -36,11 +36,8 @@ import {
   PRIORIDADE_LABEL,
   type Prioridade,
 } from "@/types/domain";
-import {
-  RELATORIO_STATUS_LABEL,
-  podeEditarRelatorio,
-  type RelatorioStatus,
-} from "@/types/relatorios-ocorrencia";
+import { RELATORIO_STATUS_LABEL, type RelatorioStatus } from "@/types/relatorios-ocorrencia";
+import { podeEditarRelatorioOcorrencia } from "@/lib/autorizacao";
 import { BadgeStatusRelatorio } from "@/components/relatorios-ocorrencia/badge-status-relatorio";
 import { BadgePrioridade } from "@/components/dashboard/badges";
 import { SecaoTimeline } from "@/components/relatorios-ocorrencia/secao-timeline";
@@ -100,7 +97,7 @@ type FormFato = z.infer<typeof schemaFato>;
 export function DetalheRelatorioClient({ id }: { id: string }) {
   const router = useRouter();
   const perfil = usePerfil();
-  const editavel = podeEditarRelatorio(perfil.papel);
+  const editavel = podeEditarRelatorioOcorrencia(perfil.papel);
   const { data: relatorio, isPending } = useRelatorioOcorrencia(id);
   const { data: timeline } = useTimelineRelatorio(id);
   const { data: exportacoes } = useExportacoesRelatorio(id);
@@ -502,7 +499,7 @@ export function DetalheRelatorioClient({ id }: { id: string }) {
         </TabsContent>
 
         <TabsContent value="historico">
-          <SecaoHistorico relatorioId={id} />
+          <SecaoHistorico relatorioId={id} editavel={editavel} />
         </TabsContent>
       </Tabs>
 

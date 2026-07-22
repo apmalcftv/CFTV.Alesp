@@ -36,7 +36,11 @@ import { usePerfil } from "@/components/perfil-provider";
 import { textosDoBranding, useTenant } from "@/components/tenant-branding";
 import { hooksDepartamentos, hooksSolicitantes } from "@/hooks/use-cadastros-relatorios-ocorrencia";
 import { hooksLocais } from "@/hooks/use-cadastros";
-import { RELATORIO_STATUS_LABEL, podeEditarRelatorio } from "@/types/relatorios-ocorrencia";
+import { RELATORIO_STATUS_LABEL } from "@/types/relatorios-ocorrencia";
+import {
+  podeCriarRelatorioOcorrencia,
+  podeImportarPlanilhasRelatoriosOcorrencia,
+} from "@/lib/autorizacao";
 import { PRIORIDADE_LABEL } from "@/types/domain";
 import { BadgeStatusRelatorio } from "@/components/relatorios-ocorrencia/badge-status-relatorio";
 import { BadgePrioridade } from "@/components/dashboard/badges";
@@ -99,8 +103,8 @@ export function RelatoriosOcorrenciasClient() {
   const router = useRouter();
   const perfil = usePerfil();
   const tenant = useTenant();
-  const editavel = podeEditarRelatorio(perfil.papel);
-  const admin = perfil.papel === "administrador";
+  const editavel = podeCriarRelatorioOcorrencia(perfil.papel);
+  const podeImportar = podeImportarPlanilhasRelatoriosOcorrencia(perfil.papel);
 
   const { data: lista, isPending } = useRelatoriosOcorrencia();
   const { data: totalExportacoes } = useTotalExportacoesRelatorio();
@@ -233,7 +237,7 @@ export function RelatoriosOcorrenciasClient() {
           </p>
         </div>
         <div className="flex gap-2">
-          {admin && (
+          {podeImportar && (
             <Ajuda texto="Importar histórico de uma planilha Excel">
               <Button variant="outline" onClick={() => setImportarAberto(true)}>
                 <Upload className="size-4" />
@@ -517,7 +521,7 @@ export function RelatoriosOcorrenciasClient() {
         </CardContent>
       </Card>
 
-      {admin && (
+      {podeImportar && (
         <DialogoImportarRelatorios open={importarAberto} onOpenChange={setImportarAberto} />
       )}
 

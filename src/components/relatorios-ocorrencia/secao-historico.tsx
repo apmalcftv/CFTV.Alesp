@@ -59,7 +59,13 @@ function textoHistorico(e: {
 
 /** Aba 7 — histórico automático, sempre em ordem cronológica reversa,
     nunca editável/excluível (append-only por design de RLS). */
-export function SecaoHistorico({ relatorioId }: { relatorioId: string }) {
+export function SecaoHistorico({
+  relatorioId,
+  editavel,
+}: {
+  relatorioId: string;
+  editavel: boolean;
+}) {
   const { data: historico, isPending } = useHistoricoRelatorio(relatorioId);
   const comentar = useAdicionarComentarioHistorico(relatorioId);
   const [mensagem, setMensagem] = useState("");
@@ -76,21 +82,23 @@ export function SecaoHistorico({ relatorioId }: { relatorioId: string }) {
         <CardTitle className="text-sm">Histórico</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <div className="flex gap-2">
-          <Textarea
-            value={mensagem}
-            onChange={(e) => setMensagem(e.target.value)}
-            placeholder="Adicionar comentário..."
-            className="min-h-9"
-          />
-          <Button onClick={enviarComentario} disabled={comentar.isPending || !mensagem.trim()}>
-            {comentar.isPending ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <MessageSquare className="size-4" />
-            )}
-          </Button>
-        </div>
+        {editavel && (
+          <div className="flex gap-2">
+            <Textarea
+              value={mensagem}
+              onChange={(e) => setMensagem(e.target.value)}
+              placeholder="Adicionar comentário..."
+              className="min-h-9"
+            />
+            <Button onClick={enviarComentario} disabled={comentar.isPending || !mensagem.trim()}>
+              {comentar.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <MessageSquare className="size-4" />
+              )}
+            </Button>
+          </div>
+        )}
 
         {isPending ? (
           <Skeleton className="h-24 w-full" />

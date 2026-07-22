@@ -1,6 +1,8 @@
-import type { PapelUsuario, Prioridade } from "@/types/domain";
+import type { Prioridade } from "@/types/domain";
 
-// ---------- Status e permissões ----------
+// ---------- Status ----------
+// Permissões deste módulo agora vivem em `@/lib/autorizacao` (serviço
+// central de autorização) — nunca redeclarar predicados de papel aqui.
 
 export type RelatorioStatus =
   | "recebida"
@@ -16,13 +18,6 @@ export const RELATORIO_STATUS_LABEL: Record<RelatorioStatus, string> = {
   concluida: "Concluída",
   arquivada: "Arquivada",
 };
-
-/** Cria/edita/conclui/arquiva relatórios de ocorrência do CMAL —
-    mesma regra de podeEditar (administrador/operador_cftc), nome próprio
-    para rastreabilidade com o módulo. */
-export function podeEditarRelatorio(papel: PapelUsuario) {
-  return papel === "administrador" || papel === "operador_cftc";
-}
 
 // ---------- Catálogos ----------
 
