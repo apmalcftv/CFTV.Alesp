@@ -1,29 +1,11 @@
 "use client";
 
 import { useState, type ComponentType } from "react";
-import {
-  Building2,
-  Factory,
-  FileDown,
-  MapPin,
-  Printer,
-  Share2,
-  Tag,
-  Trash2,
-  X,
-} from "lucide-react";
-import { toast } from "sonner";
+import { Building2, Factory, MapPin, Tag, Trash2, X } from "lucide-react";
 import { hooksCameras } from "@/hooks/use-cameras";
 import type { Camera } from "@/types/domain";
-import {
-  MIME_EXCEL,
-  exportarCamerasExcel,
-  gerarBlobCamerasExcel,
-  linhasCamerasExport,
-  type CatalogosCamera,
-} from "@/services/exportar-cameras";
-import { compartilharArquivo } from "@/services/compartilhamento";
-import { Ajuda } from "@/components/ui/ajuda";
+import type { CatalogosCamera } from "@/services/exportar-cameras";
+import { AcoesExportarCameras } from "@/components/cameras/acoes-exportar-cameras";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -138,7 +120,6 @@ export function BarraSelecaoCameras({
   const atualizarVarios = hooksCameras.useAtualizarVarios();
   const excluirVarios = hooksCameras.useExcluirVarios();
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
-  const [exportando, setExportando] = useState(false);
   const ids = selecionadas.map((c) => c.id);
 
   function aplicar(campo: keyof Camera, valor: string) {
@@ -146,61 +127,6 @@ export function BarraSelecaoCameras({
       { ids, valores: { [campo]: valor } as Partial<Camera> },
       { onSuccess: limpar }
     );
-  }
-
-  /** A barra só é renderizada com seleção > 0, mas a guarda cobre o caso de
-      a seleção ser esvaziada entre o render e o clique. */
-  function semSelecao() {
-    if (selecionadas.length > 0) return false;
-    toast.error("Selecione pelo menos uma câmera para exportar.");
-    return true;
-  }
-
-  /** `selecionadas` já chega filtrada e ordenada igual à tabela (ver
-      `selecionadosObjs` em PaginaCrud) — nada a reordenar aqui. */
-  function linhas() {
-    return linhasCamerasExport(selecionadas, catalogos);
-  }
-
-  function exportarPdf() {
-    if (semSelecao()) return;
-    // O bloco #area-impressao já está montado com esta mesma seleção
-    // (AreaImpressaoCameras, renderizada ao lado desta barra).
-    window.print();
-    toast.success(
-      `${selecionadas.length} câmera(s) exportada(s) em PDF`
-    );
-  }
-
-  async function exportarExcel() {
-    if (semSelecao()) return;
-    setExportando(true);
-    try {
-      await exportarCamerasExcel(linhas());
-      toast.success(`${selecionadas.length} câmera(s) exportada(s) em Excel`);
-    } catch (e) {
-      toast.error("Não foi possível gerar o Excel", {
-        description: (e as Error).message,
-      });
-    } finally {
-      setExportando(false);
-    }
-  }
-
-  async function compartilhar() {
-    if (semSelecao()) return;
-    setExportando(true);
-    try {
-      const blob = await gerarBlobCamerasExcel(linhas());
-      await compartilharArquivo(blob, "inventario-cameras.xlsx", MIME_EXCEL);
-      toast.success(`${selecionadas.length} câmera(s) compartilhada(s) em Excel`);
-    } catch (e) {
-      toast.error("Não foi possível compartilhar o inventário", {
-        description: (e as Error).message,
-      });
-    } finally {
-      setExportando(false);
-    }
   }
 
   return (
@@ -242,34 +168,11 @@ export function BarraSelecaoCameras({
           aoAplicar={(v) => aplicar("local_id", v)}
         />
 
-        <Ajuda texto="Gerar o PDF apenas das câmeras selecionadas, com resumo executivo">
-          <Button variant="outline" size="sm" onClick={exportarPdf}>
-            <Printer className="size-4" />
-            Exportar PDF
-          </Button>
-        </Ajuda>
-        <Ajuda texto="Baixar as câmeras selecionadas em planilha Excel">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={exportarExcel}
-            disabled={exportando}
-          >
-            <FileDown className="size-4" />
-            Exportar Excel
-          </Button>
-        </Ajuda>
-        <Ajuda texto="Compartilhar a planilha das câmeras selecionadas">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={compartilhar}
-            disabled={exportando}
-          >
-            <Share2 className="size-4" />
-            Compartilhar
-          </Button>
-        </Ajuda>
+        <AcoesExportarCameras
+          selecionadas={selecionadas}
+          catalogos={catalogos}
+          incluirCompartilhar
+        />
 
         <AlertDialog open={confirmarExclusao} onOpenChange={setConfirmarExclusao}>
           <AlertDialogTrigger asChild>

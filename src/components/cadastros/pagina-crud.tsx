@@ -129,6 +129,12 @@ export function PaginaCrud<T extends { id: string }, F extends FieldValues>({
   /** Habilita coluna de checkbox + barra de ação em massa quando há seleção */
   selecaoMassa?: {
     barra: (selecionados: T[], limpar: () => void) => ReactNode;
+    /** Ações no cabeçalho que dependem da seleção e precisam ficar SEMPRE
+        visíveis (tipicamente desabilitadas com seleção vazia) — ao
+        contrário de `barra`, que só existe quando há algo selecionado.
+        Recebe [] quando nada está marcado. Não passa por `editavel`:
+        exportar/ler não é privilégio de quem pode escrever. */
+    acoesCabecalho?: (selecionados: T[]) => ReactNode;
   };
 }) {
   const perfil = usePerfil();
@@ -236,17 +242,18 @@ export function PaginaCrud<T extends { id: string }, F extends FieldValues>({
           </h1>
           <p className="text-sm text-muted-foreground">{descricao}</p>
         </div>
-        {editavel && (
-          <div className="flex gap-2">
-            {acoesExtras}
+        <div className="flex flex-wrap gap-2">
+          {editavel && acoesExtras}
+          {selecaoMassa?.acoesCabecalho?.(selecionadosObjs)}
+          {editavel && (
             <Ajuda texto={`Cadastrar novo registro em ${titulo.toLowerCase()}`}>
               <Button onClick={abrirNovo}>
                 <Plus className="size-4" />
                 Novo
               </Button>
             </Ajuda>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {resumo && resumo(data?.length ?? 0, itens.length)}

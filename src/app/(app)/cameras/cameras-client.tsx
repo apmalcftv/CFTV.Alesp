@@ -42,6 +42,7 @@ import { SelectMultiplo } from "@/components/ui/select-multiplo";
 import { DialogoImportar } from "@/components/cameras/dialogo-importar";
 import { BarraSelecaoCameras } from "@/components/cameras/barra-selecao-cameras";
 import { AreaImpressaoCameras } from "@/components/cameras/area-impressao-cameras";
+import { AcoesExportarCameras } from "@/components/cameras/acoes-exportar-cameras";
 
 const STATUS_OPCOES = (
   Object.keys(CAMERA_STATUS_LABEL) as CameraStatus[]
@@ -287,6 +288,15 @@ export function CamerasClient() {
           </p>
         )}
         selecaoMassa={{
+          // Sempre visíveis no cabeçalho (desabilitados sem seleção), para o
+          // recurso não ficar escondido atrás de marcar um checkbox antes.
+          acoesCabecalho: (selecionadas) => (
+            <AcoesExportarCameras
+              selecionadas={selecionadas}
+              catalogos={catalogosExport}
+              compacto
+            />
+          ),
           barra: (selecionadas, limpar) => (
             <>
               <BarraSelecaoCameras
