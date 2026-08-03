@@ -5,20 +5,23 @@ import { CORES, ChartTooltip, fmtNumero } from "./chart-config";
 
 export function GraficoPizzaStatus({
   operantes,
+  degradadas,
   inoperantes,
   manutencao,
 }: {
   operantes: number;
+  degradadas: number;
   inoperantes: number;
   manutencao: number;
 }) {
   const dados = [
     { name: "Operantes", value: operantes, cor: CORES.operante },
+    { name: "Degradadas", value: degradadas, cor: CORES.degradada },
     { name: "Inoperantes", value: inoperantes, cor: CORES.inoperante },
     { name: "Manutenção", value: manutencao, cor: CORES.manutencao },
   ].filter((d) => d.value > 0);
 
-  const total = operantes + inoperantes + manutencao;
+  const total = operantes + degradadas + inoperantes + manutencao;
 
   return (
     <div className="h-64">

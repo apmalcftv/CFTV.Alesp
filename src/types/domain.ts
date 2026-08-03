@@ -17,6 +17,7 @@ export const STATUS_USUARIO_LABEL: Record<StatusUsuario, string> = {
 
 export type CameraStatus =
   | "operante"
+  | "degradada"
   | "inoperante"
   | "desligada"
   | "em_manutencao"
@@ -33,6 +34,7 @@ export type Prioridade = "baixa" | "media" | "alta" | "critica";
 
 export const CAMERA_STATUS_LABEL: Record<CameraStatus, string> = {
   operante: "Operante",
+  degradada: "Degradada",
   inoperante: "Inoperante",
   desligada: "Desligada",
   em_manutencao: "Em manutenção",
@@ -73,6 +75,11 @@ export interface Ocorrencia {
   encerrada_em: string | null;
   sla_horas: number | null;
   sla_vence_em: string | null;
+  /** Status da câmera imediatamente antes desta OS abrir — restaurado
+      automaticamente ao concluir/cancelar. Escrito só pela trigger. */
+  status_camera_anterior: CameraStatus | null;
+  /** Status que esta OS aplicou na câmera; null quando não está em aberto. */
+  status_camera_aplicado: CameraStatus | null;
   criada_em: string;
   atualizada_em: string;
 }
@@ -209,11 +216,19 @@ export const CATEGORIA_DEFEITO_OPCOES = [
   "Ambiente",
 ] as const;
 
+/** Status operacional que a câmera assume enquanto houver OS aberta com
+    este defeito. Aplicado pela trigger `sincronizar_status_camera_por_ocorrencia`
+    (nunca pela aplicação) — a UI só lê para explicar a regra ao usuário. */
 export interface TipoDefeito {
   id: string;
   nome: string;
   categoria: string | null;
+  status_camera: CameraStatus;
 }
+
+/** Status aplicado quando a OS é aberta sem tipo de defeito — mesmo
+    espelho do `coalesce(..., 'inoperante')` da trigger. */
+export const STATUS_CAMERA_SEM_DEFEITO: CameraStatus = "inoperante";
 
 export interface Camera {
   id: string;

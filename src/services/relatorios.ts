@@ -1,6 +1,10 @@
 import type { OcorrenciaDash } from "@/services/dashboard";
 import { diasParada } from "@/services/indicadores";
-import { OCORRENCIA_STATUS_LABEL, PRIORIDADE_LABEL } from "@/types/domain";
+import {
+  CAMERA_STATUS_LABEL,
+  OCORRENCIA_STATUS_LABEL,
+  PRIORIDADE_LABEL,
+} from "@/types/domain";
 
 const fmtDataIso = (v: string | null) => (v ? v.slice(0, 10) : "");
 
@@ -13,8 +17,9 @@ export function linhasRelatorioOcorrencias(ocorrencias: OcorrenciaDash[]) {
     Prédio: o.camera?.local?.predio?.nome ?? "",
     Local: o.camera?.local?.nome ?? "",
     Defeito: o.tipo_defeito?.nome ?? "",
+    "Status da câmera": o.camera ? CAMERA_STATUS_LABEL[o.camera.status] : "",
     Prioridade: PRIORIDADE_LABEL[o.prioridade],
-    Status: OCORRENCIA_STATUS_LABEL[o.status],
+    "Status da OS": OCORRENCIA_STATUS_LABEL[o.status],
     Empresa: o.empresa?.nome ?? "",
     "Dias parada": diasParada(o),
     "SLA vence em": fmtDataIso(o.sla_vence_em),

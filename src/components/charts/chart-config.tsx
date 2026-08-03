@@ -8,8 +8,11 @@ export const CORES = {
   serie4: "var(--chart-4)",
   serie5: "var(--chart-5)",
   operante: "var(--success)",
+  degradada: "var(--warning)",
   inoperante: "var(--destructive)",
-  manutencao: "var(--warning)",
+  // chart-1 (azul) para não colidir com o âmbar de "degradada" — mesma cor
+  // do badge de "Em manutenção"
+  manutencao: "var(--chart-1)",
   grid: "var(--border)",
   texto: "var(--muted-foreground)",
   surface: "var(--card)",

@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Cctv,
   CheckCheck,
+  CircleAlert,
   ClipboardList,
   Clock,
   Database,
@@ -214,8 +215,8 @@ export function DashboardClient() {
               <KpiCardSkeleton key={i} destaque />
             ))}
           </div>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
-            {Array.from({ length: 8 }).map((_, i) => (
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-9">
+            {Array.from({ length: 9 }).map((_, i) => (
               <KpiCardSkeleton key={i} />
             ))}
           </div>
@@ -270,7 +271,7 @@ export function DashboardClient() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-9">
             <KpiCard
               titulo="Total de câmeras"
               valor={fmtNumero.format(kpis.totalCameras)}
@@ -289,6 +290,16 @@ export function DashboardClient() {
               atualizando={atualizando}
               href="/cameras?status=operante"
               ajuda="Câmeras funcionando normalmente — clique para ver a lista"
+            />
+            <KpiCard
+              titulo="Degradadas"
+              valor={fmtNumero.format(kpis.degradadas)}
+              icone={CircleAlert}
+              tom="alerta"
+              percentual={pctParque(kpis.degradadas)}
+              atualizando={atualizando}
+              href="/cameras?status=degradada"
+              ajuda="Câmeras no ar, mas com defeito que compromete imagem ou sinal"
             />
             <KpiCard
               titulo="Em manutenção"

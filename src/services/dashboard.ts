@@ -12,11 +12,18 @@ export interface ItemCatalogo {
   nome: string;
 }
 
+/** Além do nome, carrega o status que a câmera assume ao abrir uma OS
+    com este defeito — a UI usa só para antecipar a regra ao usuário; quem
+    aplica de fato é a trigger no banco. */
+export interface ItemCatalogoDefeito extends ItemCatalogo {
+  status_camera: CameraStatus;
+}
+
 export interface Catalogos {
   predios: ItemCatalogo[];
   empresas: ItemCatalogo[];
   fabricantes: ItemCatalogo[];
-  tiposDefeito: ItemCatalogo[];
+  tiposDefeito: ItemCatalogoDefeito[];
 }
 
 export interface CameraDash {
@@ -53,6 +60,7 @@ export interface OcorrenciaDash {
   camera: {
     id: string;
     numero: number;
+    status: CameraStatus;
     local: {
       id: string;
       nome: string;
@@ -69,7 +77,7 @@ export async function fetchCatalogos(): Promise<Catalogos> {
     supabase.from("predios").select("id, nome").order("nome"),
     supabase.from("empresas").select("id, nome").order("nome"),
     supabase.from("fabricantes").select("id, nome").order("nome"),
-    supabase.from("tipos_defeito").select("id, nome").order("nome"),
+    supabase.from("tipos_defeito").select("id, nome, status_camera").order("nome"),
   ]);
 
   const erro =
@@ -80,7 +88,7 @@ export async function fetchCatalogos(): Promise<Catalogos> {
     predios: (predios.data ?? []) as ItemCatalogo[],
     empresas: (empresas.data ?? []) as ItemCatalogo[],
     fabricantes: (fabricantes.data ?? []) as ItemCatalogo[],
-    tiposDefeito: (tiposDefeito.data ?? []) as ItemCatalogo[],
+    tiposDefeito: (tiposDefeito.data ?? []) as unknown as ItemCatalogoDefeito[],
   };
 }
 
@@ -108,7 +116,7 @@ export async function fetchOcorrenciasDashboard(): Promise<OcorrenciaDash[]> {
        aberta_em, primeira_resposta_em, encerrada_em, sla_vence_em, impedimento,
        tipo_defeito:tipos_defeito(id, nome),
        empresa:empresas(id, nome),
-       camera:cameras!ocorrencias_camera_id_fkey(id, numero,
+       camera:cameras!ocorrencias_camera_id_fkey(id, numero, status,
          local:locais(id, nome, predio:predios(id, nome)))`
     )
     .order("aberta_em", { ascending: false })

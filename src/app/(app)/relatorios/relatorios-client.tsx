@@ -16,7 +16,11 @@ import {
 import { exportarOcorrenciasExcel } from "@/services/relatorios";
 import { useOrdenacao } from "@/hooks/use-ordenacao";
 import { FiltrosDashboard } from "@/components/dashboard/filtros-dashboard";
-import { BadgePrioridade, BadgeStatusOcorrencia } from "@/components/dashboard/badges";
+import {
+  BadgePrioridade,
+  BadgeStatusCamera,
+  BadgeStatusOcorrencia,
+} from "@/components/dashboard/badges";
 import { OCORRENCIA_STATUS_LABEL } from "@/types/domain";
 import { Ajuda } from "@/components/ui/ajuda";
 import { CabecalhoOrdenavel } from "@/components/ui/cabecalho-ordenavel";
@@ -74,6 +78,7 @@ export function RelatoriosClient() {
         aberta_em: (o) => o.aberta_em,
         camera: (o) => o.camera?.numero ?? 0,
         defeito: (o) => o.tipo_defeito?.nome ?? "",
+        status_camera: (o) => o.camera?.status ?? "",
         empresa: (o) => o.empresa?.nome ?? "",
         status: (o) => o.status,
         prioridade: (o) => o.prioridade,
@@ -169,10 +174,13 @@ export function RelatoriosClient() {
                         <CabecalhoOrdenavel chave="defeito" rotulo="Defeito" ordenacao={ordenacao} onClick={alternarOrdenacao} />
                       </TableHead>
                       <TableHead>
+                        <CabecalhoOrdenavel chave="status_camera" rotulo="Status da câmera" ordenacao={ordenacao} onClick={alternarOrdenacao} />
+                      </TableHead>
+                      <TableHead>
                         <CabecalhoOrdenavel chave="empresa" rotulo="Empresa" ordenacao={ordenacao} onClick={alternarOrdenacao} />
                       </TableHead>
                       <TableHead>
-                        <CabecalhoOrdenavel chave="status" rotulo="Status" ordenacao={ordenacao} onClick={alternarOrdenacao} />
+                        <CabecalhoOrdenavel chave="status" rotulo="Status da OS" ordenacao={ordenacao} onClick={alternarOrdenacao} />
                       </TableHead>
                       <TableHead>
                         <CabecalhoOrdenavel chave="prioridade" rotulo="Prioridade" ordenacao={ordenacao} onClick={alternarOrdenacao} />
@@ -192,6 +200,13 @@ export function RelatoriosClient() {
                             : "Sistema"}
                         </TableCell>
                         <TableCell>{o.tipo_defeito?.nome ?? "—"}</TableCell>
+                        <TableCell>
+                          {o.camera ? (
+                            <BadgeStatusCamera status={o.camera.status} />
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
                         <TableCell>{o.empresa?.nome ?? "—"}</TableCell>
                         <TableCell>
                           <BadgeStatusOcorrencia status={o.status} />

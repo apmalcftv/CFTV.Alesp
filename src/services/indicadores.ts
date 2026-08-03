@@ -144,6 +144,8 @@ function mediaHoras(valores: number[]): number | null {
 export interface KpisDashboard {
   totalCameras: number;
   operantes: number;
+  /** Câmeras em operação parcial (defeito que não derruba a câmera) */
+  degradadas: number;
   inoperantes: number;
   emManutencao: number;
   osAbertas: number;
@@ -167,6 +169,9 @@ export function calcularKpis(dados: DadosFiltrados, agora = new Date()): KpisDas
     (c) => c.status !== "desligada_permanentemente"
   );
   const operantes = cameras.filter((c) => c.status === "operante").length;
+  // "degradada" é um estado próprio: não soma em operantes (a câmera não
+  // está 100%) nem em inoperantes (ela ainda está no ar)
+  const degradadas = cameras.filter((c) => c.status === "degradada").length;
   const inoperantes = cameras.filter(
     (c) => c.status === "inoperante" || c.status === "desligada"
   ).length;
@@ -209,6 +214,7 @@ export function calcularKpis(dados: DadosFiltrados, agora = new Date()): KpisDas
   return {
     totalCameras: cameras.length,
     operantes,
+    degradadas,
     inoperantes,
     emManutencao,
     osAbertas: abertas.length,
@@ -268,6 +274,7 @@ export function statusCamerasPizza(cameras: CameraDash[]) {
   );
   return {
     operantes: ativas.filter((c) => c.status === "operante").length,
+    degradadas: ativas.filter((c) => c.status === "degradada").length,
     inoperantes: ativas.filter(
       (c) => c.status === "inoperante" || c.status === "desligada"
     ).length,
@@ -448,6 +455,7 @@ export interface BlocoLocal {
   nome: string;
   total: number;
   operantes: number;
+  degradadas: number;
   inoperantes: number;
   disponibilidade: number; // 0–100
 }
@@ -464,11 +472,13 @@ export function camerasPorGrupo(cameras: CameraDash[]): BlocoLocal[] {
   return [...grupos.entries()]
     .map(([nome, lista]) => {
       const operantes = lista.filter((c) => c.status === "operante").length;
+      const degradadas = lista.filter((c) => c.status === "degradada").length;
       const inoperantes = lista.filter((c) => c.status === "inoperante").length;
       return {
         nome,
         total: lista.length,
         operantes,
+        degradadas,
         inoperantes,
         disponibilidade: (operantes / lista.length) * 100,
       };

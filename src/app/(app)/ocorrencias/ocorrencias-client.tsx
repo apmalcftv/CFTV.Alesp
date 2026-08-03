@@ -20,9 +20,11 @@ import { diasParada, estaAberta } from "@/services/indicadores";
 import { useOrdenacao } from "@/hooks/use-ordenacao";
 import { usePerfil } from "@/components/perfil-provider";
 import {
+  CAMERA_STATUS_LABEL,
   OCORRENCIA_STATUS_LABEL,
   PRIORIDADE_LABEL,
   SLA_OPCOES,
+  STATUS_CAMERA_SEM_DEFEITO,
   podeEditar,
   type Prioridade,
 } from "@/types/domain";
@@ -124,6 +126,16 @@ function NovaOcorrenciaDialog() {
     defaultValues: valoresPadraoNova,
   });
   const empresaId = form.watch("empresa_id");
+  const cameraId = form.watch("camera_id");
+  const tipoDefeitoId = form.watch("tipo_defeito_id");
+
+  /** Prévia da regra aplicada pela trigger ao salvar: o defeito escolhido
+      define para qual status a câmera vinculada vai enquanto a OS estiver
+      aberta (ver `sincronizar_status_camera_por_ocorrencia`). */
+  const statusCameraPrevisto = cameraId
+    ? (catalogos?.tiposDefeito.find((t) => t.id === tipoDefeitoId)
+        ?.status_camera ?? STATUS_CAMERA_SEM_DEFEITO)
+    : null;
 
   const opcoesCamera = (cameras ?? []).map((c) => ({
     valor: c.id,
@@ -224,6 +236,16 @@ function NovaOcorrenciaDialog() {
                   opcoes={OPCOES_PRIORIDADE}
                 />
               </div>
+              {statusCameraPrevisto && (
+                <p className="-mt-2 text-xs text-muted-foreground">
+                  Ao abrir, a câmera passa para{" "}
+                  <span className="font-medium text-foreground">
+                    {CAMERA_STATUS_LABEL[statusCameraPrevisto]}
+                  </span>{" "}
+                  e volta ao status atual quando a OS for concluída ou
+                  cancelada.
+                </p>
+              )}
               <CampoTextarea
                 control={form.control}
                 name="descricao"

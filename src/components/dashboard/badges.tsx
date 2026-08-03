@@ -25,6 +25,7 @@ function PontoBadge() {
 
 const CAMERA_STATUS_CLASSE: Record<CameraStatus, string> = {
   operante: "bg-success/10 text-success border-success/20",
+  degradada: "bg-warning/10 text-warning border-warning/20",
   inoperante: "bg-destructive/10 text-destructive border-destructive/20",
   desligada: "bg-muted text-muted-foreground border-transparent",
   em_manutencao: "bg-[var(--chart-1)]/10 text-[var(--chart-1)] border-[var(--chart-1)]/20",
@@ -33,6 +34,8 @@ const CAMERA_STATUS_CLASSE: Record<CameraStatus, string> = {
 
 const CAMERA_STATUS_AJUDA: Record<CameraStatus, string> = {
   operante: "Câmera funcionando normalmente",
+  degradada:
+    "Câmera ainda em operação, mas com defeito que compromete a imagem ou o sinal",
   inoperante: "Câmera parada, sem atendimento em andamento",
   desligada: "Câmera desligada (retirada, substituída ou fora de uso)",
   em_manutencao: "Técnico já está atendendo esta câmera",

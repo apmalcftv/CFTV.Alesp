@@ -80,7 +80,7 @@ export function HeatmapLocais({
               {fmtPct(bloco.disponibilidade, 0)}
             </p>
             <p className="text-xs text-muted-foreground">disponibilidade</p>
-            <div className="mt-3 flex items-center gap-4 text-xs">
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
               <span className="text-muted-foreground">
                 <span className="font-semibold text-foreground">
                   {bloco.total}
@@ -92,6 +92,12 @@ export function HeatmapLocais({
                   {bloco.operantes}
                 </span>{" "}
                 operantes
+              </span>
+              <span className="text-muted-foreground">
+                <span className="font-semibold text-warning">
+                  {bloco.degradadas}
+                </span>{" "}
+                degradadas
               </span>
               <span className="text-muted-foreground">
                 <span className="font-semibold text-destructive">

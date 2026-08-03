@@ -15,7 +15,12 @@ import { PainelAlertas } from "./painel-alertas";
 import type { Alertas } from "@/services/indicadores";
 
 export interface DadosGraficos {
-  statusPizza: { operantes: number; inoperantes: number; manutencao: number };
+  statusPizza: {
+    operantes: number;
+    degradadas: number;
+    inoperantes: number;
+    manutencao: number;
+  };
   porPredio: PontoNomeValor[];
   topLocais: PontoNomeValor[];
   evolucao: PontoMensal[];
@@ -41,7 +46,10 @@ export function SecaoGraficos({
 }) {
   const { statusPizza } = dados;
   const totalPizza =
-    statusPizza.operantes + statusPizza.inoperantes + statusPizza.manutencao;
+    statusPizza.operantes +
+    statusPizza.degradadas +
+    statusPizza.inoperantes +
+    statusPizza.manutencao;
 
   return (
     <>
@@ -57,6 +65,7 @@ export function SecaoGraficos({
               colunas: ["Status", "Câmeras"],
               linhas: [
                 ["Operantes", statusPizza.operantes],
+                ["Degradadas", statusPizza.degradadas],
                 ["Inoperantes", statusPizza.inoperantes],
                 ["Manutenção", statusPizza.manutencao],
               ],

@@ -11,8 +11,8 @@ relatórios e visão executiva.
 Dar ao Operador CFTC, às empresas contratadas de manutenção e à gestão da
 ALESP um painel único para:
 
-- acompanhar a situação de cada câmera do circuito (operante, inoperante, em
-  manutenção etc.);
+- acompanhar a situação de cada câmera do circuito (operante, degradada,
+  inoperante, em manutenção etc.);
 - abrir, atribuir e acompanhar ordens de serviço até a conclusão, com SLA e
   histórico auditável;
 - visualizar KPIs, gráficos e alertas de disponibilidade do parque;

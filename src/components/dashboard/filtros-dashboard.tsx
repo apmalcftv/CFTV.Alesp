@@ -28,6 +28,7 @@ const PERIODOS: { valor: Periodo; rotulo: string }[] = [
 
 const STATUS_FILTRO: CameraStatus[] = [
   "operante",
+  "degradada",
   "inoperante",
   "desligada",
   "em_manutencao",
