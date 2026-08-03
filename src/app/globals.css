@@ -189,8 +189,9 @@
   animation: shimmer 1.8s ease-in-out infinite;
 }
 
-/* Exportação em PDF via impressão do navegador (Relatórios/Executivo):
-   só a área marcada com #area-impressao aparece na página impressa. */
+/* Exportação em PDF via impressão do navegador (Relatórios/Executivo/
+   Câmeras): só a área marcada com #area-impressao aparece na página
+   impressa. */
 @media print {
   body * {
     visibility: hidden;
@@ -199,9 +200,15 @@
   #area-impressao * {
     visibility: visible;
   }
+  /* `bottom: auto` (e não o `inset: 0` original) é o que permite a área
+     crescer além de uma página: com top+bottom fixados a altura ficava
+     presa ao bloco continente e listas longas eram cortadas na página 1. */
   #area-impressao {
     position: absolute;
-    inset: 0;
+    top: 0;
+    right: 0;
+    bottom: auto;
+    left: 0;
     padding: 1rem;
   }
 }

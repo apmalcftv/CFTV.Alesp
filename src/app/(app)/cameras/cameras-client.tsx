@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -23,6 +23,9 @@ import {
   hooksPredios,
 } from "@/hooks/use-cadastros";
 import { crudLocais } from "@/services/cadastros";
+import type { CatalogosCamera } from "@/services/exportar-cameras";
+import { usePerfil } from "@/components/perfil-provider";
+import { textosDoBranding, useTenant } from "@/components/tenant-branding";
 import { PaginaCrud, type ColunaCrud } from "@/components/cadastros/pagina-crud";
 import {
   CampoComboboxCriavel,
@@ -38,6 +41,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SelectMultiplo } from "@/components/ui/select-multiplo";
 import { DialogoImportar } from "@/components/cameras/dialogo-importar";
 import { BarraSelecaoCameras } from "@/components/cameras/barra-selecao-cameras";
+import { AreaImpressaoCameras } from "@/components/cameras/area-impressao-cameras";
 
 const STATUS_OPCOES = (
   Object.keys(CAMERA_STATUS_LABEL) as CameraStatus[]
@@ -146,6 +150,8 @@ function CampoCameraCalculada({ control }: { control: Control<Form> }) {
 }
 
 export function CamerasClient() {
+  const perfil = usePerfil();
+  const tenant = useTenant();
   const searchParams = useSearchParams();
   const statusUrl = searchParams.get("status");
   const [statusFiltro, setStatusFiltro] = useState<CameraStatus[]>(() =>
@@ -187,6 +193,21 @@ export function CamerasClient() {
   };
   const nomeEmpresa = (id: string | null) =>
     id ? (empresas?.find((e) => e.id === id)?.nome ?? "—") : "—";
+
+  /** Catálogos já carregados acima — a exportação reaproveita estes
+      registros em vez de consultar o banco de novo. */
+  const catalogosExport: CatalogosCamera = useMemo(
+    () => ({
+      locais: locais ?? [],
+      predios: predios ?? [],
+      modelos: modelos ?? [],
+      fabricantes: fabricantes ?? [],
+      empresas: empresas ?? [],
+    }),
+    [locais, predios, modelos, fabricantes, empresas]
+  );
+
+  const branding = textosDoBranding(tenant);
 
   async function aoCriarLocal(nome: string): Promise<string | undefined> {
     const predioId = predios?.[0]?.id;
@@ -267,14 +288,27 @@ export function CamerasClient() {
         )}
         selecaoMassa={{
           barra: (selecionadas, limpar) => (
-            <BarraSelecaoCameras
-              selecionadas={selecionadas}
-              limpar={limpar}
-              opcoesStatus={STATUS_OPCOES}
-              opcoesEmpresa={opcoesEmpresa}
-              opcoesModelo={opcoesModelo}
-              opcoesLocal={opcoesLocal}
-            />
+            <>
+              <BarraSelecaoCameras
+                selecionadas={selecionadas}
+                limpar={limpar}
+                opcoesStatus={STATUS_OPCOES}
+                opcoesEmpresa={opcoesEmpresa}
+                opcoesModelo={opcoesModelo}
+                opcoesLocal={opcoesLocal}
+                catalogos={catalogosExport}
+              />
+              {/* Invisível na tela (`hidden print:block`); é o conteúdo que
+                  o window.print() do botão "Exportar PDF" imprime. */}
+              <AreaImpressaoCameras
+                cameras={selecionadas}
+                catalogos={catalogosExport}
+                nomeSistema={branding.nomeSistema}
+                logoUrl={branding.logoUrl}
+                rodape={branding.rodape}
+                usuario={perfil.nome}
+              />
+            </>
           ),
         }}
         paraFormulario={(c) => ({
