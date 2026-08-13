@@ -1,21 +1,36 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { toast } from "sonner";
+import { useCallback, useRef, useState } from "react";
 import { Loader2, Maximize2, Minimize2, Save } from "lucide-react";
 import { useCamerasDashboard } from "@/hooks/use-dashboard";
-import { hooksLocais, hooksPredios } from "@/hooks/use-cadastros";
 import { hooksMarcadores } from "@/hooks/use-cadastros-relatorios-ocorrencia";
-import { crudLocais } from "@/services/cadastros";
 import { crudMarcadores } from "@/services/cadastros-relatorios-ocorrencia";
-import { usePerfis } from "@/hooks/use-usuarios";
+import { useOperadoresAnalise, usePerfis } from "@/hooks/use-usuarios";
+import { useAtualizarRelatorioOcorrencia } from "@/hooks/use-relatorios-ocorrencia";
 import { useFullscreen } from "@/hooks/use-fullscreen";
+import { usePerfil } from "@/components/perfil-provider";
 import type { RelatorioOcorrenciaDetalhe } from "@/services/relatorios-ocorrencia";
 import { CabecalhoAnalise } from "./grid-analise/cabecalho-analise";
 import { BarraEstatisticas } from "./grid-analise/barra-estatisticas";
 import { GridAnalise } from "./grid-analise/grid-analise";
 import { useTimelineGrid } from "./grid-analise/usar-timeline-grid";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export function SecaoTimeline({
   relatorio,
@@ -25,15 +40,33 @@ export function SecaoTimeline({
   editavel: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  // O mesmo elemento também em estado: o portal do diálogo precisa dele
+  // durante o render, e ler `ref.current` aí seria impuro. A ref callback
+  // precisa de identidade estável (`useCallback`), senão React a
+  // desanexaria e reanexaria a cada render, num laço de setState.
+  const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null);
+  const definirContainer = useCallback((el: HTMLDivElement | null) => {
+    containerRef.current = el;
+    setContainerEl(el);
+  }, []);
   const { ativo: modoInvestigacao, alternar: alternarModoInvestigacao } = useFullscreen(containerRef);
   const [cabecalhoRecolhido, setCabecalhoRecolhido] = useState(false);
   const [dataAnalise, setDataAnalise] = useState(
     relatorio.data_fato ?? relatorio.data_solicitacao
   );
+  const [confirmarAberto, setConfirmarAberto] = useState(false);
+  const [operadorEscolhido, setOperadorEscolhido] = useState("");
 
+  const perfilLogado = usePerfil();
+  const atualizarRelatorio = useAtualizarRelatorioOcorrencia(relatorio.id);
   const { data: cameras } = useCamerasDashboard();
-  const { data: locais } = hooksLocais.useListar();
-  const { data: predios } = hooksPredios.useListar();
+  // Fonte única das duas listas de escolha: coluna Operador do grid e
+  // modal "Salvar análise".
+  const { data: operadores } = useOperadoresAnalise();
+  // Lista completa só para resolver o NOME de quem já está gravado como
+  // operador do relatório. Se essa pessoa perder o papel de Administrador
+  // ou Operador CFTC, ela some das opções de escolha (é o que se pediu),
+  // mas o nome dela continua aparecendo no que já foi registrado.
   const { data: perfis } = usePerfis();
   const { data: marcadores } = hooksMarcadores.useListar();
 
@@ -62,26 +95,30 @@ export function SecaoTimeline({
     operadorAtual?.nome ?? ""
   );
 
-  async function aoCriarLocal(nome: string) {
-    const predioId = predios?.[0]?.id;
-    if (!predioId) {
-      toast.error("Cadastre um prédio antes de criar um local");
-      return undefined;
-    }
-    const novo = await crudLocais.criar({ nome, predio_id: predioId });
-    return { id: novo.id, texto: novo.nome };
-  }
-
   async function aoCriarMarcador(nome: string) {
     const novo = await crudMarcadores.criar({ nome });
     return { id: novo.id, texto: novo.nome };
   }
 
-  async function aoSalvar() {
+  const opcoesOperador = (operadores ?? []).map((p) => ({ valor: p.id, rotulo: p.nome }));
+
+  /** O responsável é perguntado aqui, e não na aba de solicitação: só ao
+      fechar a análise se sabe quem de fato a conduziu. Sugere quem está
+      logado quando o relatório ainda não tem responsável. */
+  function abrirConfirmacao() {
+    setOperadorEscolhido(relatorio.operador_id ?? perfilLogado.id);
+    setConfirmarAberto(true);
+  }
+
+  async function confirmarSalvar() {
     try {
+      if (operadorEscolhido !== (relatorio.operador_id ?? "")) {
+        await atualizarRelatorio.mutateAsync({ operador_id: operadorEscolhido || null });
+      }
       await salvarAnalise();
+      setConfirmarAberto(false);
     } catch {
-      // toast de erro já é disparado pelo hook useSalvarTimelineCompleta
+      // os toasts de erro já vêm dos hooks de mutação
     }
   }
 
@@ -91,7 +128,7 @@ export function SecaoTimeline({
 
   return (
     <div
-      ref={containerRef}
+      ref={definirContainer}
       className={
         modoInvestigacao
           ? "flex h-screen flex-col bg-background"
@@ -129,7 +166,7 @@ export function SecaoTimeline({
             {modoInvestigacao ? "Sair do modo investigação" : "Modo Investigação"}
           </Button>
           {editavel && (
-            <Button size="sm" onClick={aoSalvar} disabled={salvando || !sujo}>
+            <Button size="sm" onClick={abrirConfirmacao} disabled={salvando || !sujo}>
               {salvando ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
               Salvar Análise
             </Button>
@@ -149,10 +186,8 @@ export function SecaoTimeline({
           operadorId={relatorio.operador_id}
           operadorTexto={operadorAtual?.nome ?? ""}
           cameras={cameras ?? []}
-          locais={locais ?? []}
-          perfis={perfis ?? []}
+          operadores={operadores ?? []}
           marcadores={marcadores ?? []}
-          aoCriarLocal={aoCriarLocal}
           aoCriarMarcador={aoCriarMarcador}
           editavel={editavel}
         />
@@ -165,6 +200,53 @@ export function SecaoTimeline({
         ultimaEdicaoEm={ultimaEdicaoEm}
         ultimoAutosaveEm={ultimoAutosaveEm}
       />
+
+      <Dialog open={confirmarAberto} onOpenChange={setConfirmarAberto}>
+        {/* No Modo Investigação o container está em fullscreen: sem apontar
+            o portal para ele, o diálogo seria montado no body e ficaria
+            invisível. */}
+        <DialogContent container={modoInvestigacao ? containerEl : undefined}>
+          <DialogHeader>
+            <DialogTitle>Salvar análise</DialogTitle>
+            <DialogDescription>
+              Confirme quem conduziu esta análise. O responsável fica registrado no
+              relatório e aparece nos indicadores do módulo.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="operador-analise">Operador responsável</Label>
+            <Select value={operadorEscolhido || undefined} onValueChange={setOperadorEscolhido}>
+              <SelectTrigger id="operador-analise" className="w-full">
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent container={modoInvestigacao ? containerEl : undefined}>
+                {opcoesOperador.map((o) => (
+                  <SelectItem key={o.valor} value={o.valor}>
+                    {o.rotulo}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmarAberto(false)}
+              disabled={salvando || atualizarRelatorio.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={confirmarSalvar} disabled={salvando || atualizarRelatorio.isPending}>
+              {(salvando || atualizarRelatorio.isPending) && (
+                <Loader2 className="size-4 animate-spin" />
+              )}
+              Salvar análise
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

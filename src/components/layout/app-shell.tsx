@@ -95,7 +95,11 @@ export function AppShell({
                   <SheetTitle>Menu de navegação</SheetTitle>
                 </SheetHeader>
                 <Logo />
-                <div className="py-2">
+                {/* flex-1 + overflow: com dois níveis de cabeçalho o menu
+                    passa de 700px de altura e não cabe inteiro num celular —
+                    sem isso os últimos itens ficam inalcançáveis. A sidebar
+                    fixa do desktop já tem o mesmo tratamento. */}
+                <div className="min-h-0 flex-1 overflow-y-auto py-2">
                   <SidebarNav onNavigate={() => setMenuAberto(false)} />
                 </div>
               </SheetContent>

@@ -1,73 +1,39 @@
-// Serviço central de autorização. Objetivo: nenhuma regra de permissão
-// deveria viver espalhada em componentes/serviços/páginas — cada módulo
-// declara sua matriz de papéis aqui, e menu/rotas/botões/ações consultam
-// só estas funções. As policies de RLS no Supabase espelham exatamente
-// os mesmos papéis (ver comentário em cada migration) — são duas
-// linguagens diferentes (TS/SQL), então a fonte da verdade vive nos dois
-// lugares por necessidade técnica, mas a intenção e os papéis nunca devem
-// divergir entre eles.
+// Autorização do módulo "Relatórios de Ocorrências" (CMAL).
 //
-// Só o módulo "Relatórios de Ocorrências" foi migrado para cá nesta
-// entrega. Os demais módulos continuam com suas checagens atuais
-// (`podeEditar`, `podeGerenciarUsuarios`, `podeAtualizarOcorrencia` em
-// `types/domain.ts`) intocadas — migrá-los depois é só reexportar a
-// mesma função por aqui, sem mudar nenhum comportamento.
+// FONTE ÚNICA DA VERDADE: a matriz configurável em Cadastros › Permissões,
+// consultada pela função SQL `tem_permissao(recurso, ação)`.
+//
+//   • nas telas          -> `useMinhasPermissoes()` de @/hooks/use-permissoes
+//   • nos guardas de rota-> `temPermissao()` de @/lib/permissoes-servidor
+//   • no banco           -> as policies de RLS chamam `tem_permissao()`
+//
+// As três camadas acabam no MESMO código rodando no Postgres, então não
+// têm como divergir. Quem protege o dado é a RLS; tela e rota só evitam
+// oferecer uma ação que o banco vai recusar.
+//
+// NÃO reintroduzir aqui funções do tipo `podeXRelatorioOcorrencia(papel)`.
+// Existiam 14 delas, comparando papéis literais; ficaram órfãs quando as
+// telas passaram a ler a matriz e foram removidas em 11/08/2026
+// justamente porque devolviam a regra antiga — um uso acidental
+// divergiria da configuração do Administrador em silêncio, sem nada
+// acusar. Permissão nova se declara no catálogo (`permissoes_catalogo`),
+// não em código.
+//
+// O módulo Câmeras ainda usa regras por papel (`podeEditar` e afins em
+// `types/domain.ts`), o que é esperado: a migração dele para a matriz é
+// uma fase própria, ainda não iniciada.
 
 import type { PapelUsuario } from "@/types/domain";
 
-// ---------- Módulo: Relatórios de Ocorrências ----------
+/** Papéis que podem ser atribuídos como **operador de uma análise**
+    (coluna Operador do grid e modal "Salvar análise"), consumido por
+    `services/usuarios.ts::listarOperadoresAnalise()`.
 
-/** Administrador e Operador CFTC têm exatamente os mesmos privilégios
-    neste módulo: visualizar, criar, editar, excluir, alterar status,
-    arquivar, restaurar, importar planilhas, gerenciar anexos/timeline/
-    histórico — todas as ações de escrita. */
-const PAPEIS_GESTAO_RELATORIOS_OCORRENCIA: readonly PapelUsuario[] = [
+    Continua sendo lista fixa de propósito, e não uma entrada da matriz:
+    não é uma permissão de quem está usando o sistema, e sim o conjunto de
+    pessoas elegíveis a constar como responsável por um trabalho. Um papel
+    novo só entra aqui deliberadamente. */
+export const PAPEIS_GESTAO_RELATORIOS_OCORRENCIA: readonly PapelUsuario[] = [
   "administrador",
   "operador_cftc",
 ];
-
-/** Gestor enxerga o módulo em modo somente leitura (ver, pesquisar,
-    filtrar, timeline, anexos, exportar, compartilhar). Fiscal ALESP e
-    Empresa Contratada não têm acesso nenhum — nem o menu aparece, nem a
-    URL funciona, nem a API/RLS libera. */
-export const PAPEIS_COM_ACESSO_RELATORIOS_OCORRENCIA: readonly PapelUsuario[] = [
-  ...PAPEIS_GESTAO_RELATORIOS_OCORRENCIA,
-  "gestor",
-];
-
-/** Menu, acesso à(s) rota(s) do módulo e leitura em geral. */
-export function podeAcessarRelatoriosOcorrencia(papel: PapelUsuario): boolean {
-  return PAPEIS_COM_ACESSO_RELATORIOS_OCORRENCIA.includes(papel);
-}
-
-/** Criar, editar, excluir, alterar status, arquivar, restaurar, gerenciar
-    anexos/timeline/histórico e importar planilhas — tudo que grava dado.
-    Único predicado para todas essas ações porque, neste módulo, o
-    conjunto de papéis autorizados é idêntico para todas elas (ver
-    cabeçalho da CMAL: Operador CFTC = Administrador aqui). */
-export function podeGerenciarRelatoriosOcorrencia(papel: PapelUsuario): boolean {
-  return PAPEIS_GESTAO_RELATORIOS_OCORRENCIA.includes(papel);
-}
-
-/** Exportar (PDF/Excel) e compartilhar — liberado também para o Gestor,
-    que só não grava dado nenhum. */
-export function podeExportarRelatoriosOcorrencia(papel: PapelUsuario): boolean {
-  return podeAcessarRelatoriosOcorrencia(papel);
-}
-
-// Aliases nomeados por ação — mesma regra de podeGerenciarRelatoriosOcorrencia,
-// mantidos como funções próprias para o código de chamada ficar
-// autoexplicativo (ex.: `podeExcluirRelatorioOcorrencia(perfil.papel)` no
-// lugar de um genérico "podeGerenciar" sem contexto) e para dar um ponto
-// único de mudança caso algum papel precise divergir no futuro.
-export const podeCriarRelatorioOcorrencia = podeGerenciarRelatoriosOcorrencia;
-export const podeEditarRelatorioOcorrencia = podeGerenciarRelatoriosOcorrencia;
-export const podeExcluirRelatorioOcorrencia = podeGerenciarRelatoriosOcorrencia;
-export const podeAlterarStatusRelatorioOcorrencia = podeGerenciarRelatoriosOcorrencia;
-export const podeArquivarRelatorioOcorrencia = podeGerenciarRelatoriosOcorrencia;
-export const podeRestaurarRelatorioOcorrencia = podeGerenciarRelatoriosOcorrencia;
-export const podeImportarPlanilhasRelatoriosOcorrencia = podeGerenciarRelatoriosOcorrencia;
-export const podeGerenciarAnexosRelatoriosOcorrencia = podeGerenciarRelatoriosOcorrencia;
-export const podeGerenciarTimelineRelatoriosOcorrencia = podeGerenciarRelatoriosOcorrencia;
-export const podeGerenciarHistoricoRelatoriosOcorrencia = podeGerenciarRelatoriosOcorrencia;
-export const podeCompartilharRelatoriosOcorrencia = podeExportarRelatoriosOcorrencia;

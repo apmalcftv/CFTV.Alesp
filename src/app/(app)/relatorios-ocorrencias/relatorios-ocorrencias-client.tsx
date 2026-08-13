@@ -2,29 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Archive,
-  CheckCircle2,
-  Clock,
-  FileDown,
-  FileSearch,
-  Inbox,
-  Plus,
-  Printer,
-  Search,
-  Share2,
-  Upload,
-} from "lucide-react";
-import { useTotalExportacoesRelatorio } from "@/hooks/use-dashboard-relatorios-ocorrencia";
+import { FileDown, Plus, Printer, Search, Share2, Upload } from "lucide-react";
 import { useRelatoriosOcorrencia } from "@/hooks/use-relatorios-ocorrencia";
-import {
-  calcularAlertasRelatorio,
-  calcularKpisRelatorio,
-  porDepartamento,
-  porLocal,
-  porMes,
-  porOperador,
-} from "@/services/indicadores-relatorios-ocorrencia";
 import {
   exportarListaRelatoriosExcel,
   exportarResumoExecutivoExcel,
@@ -37,21 +16,17 @@ import { textosDoBranding, useTenant } from "@/components/tenant-branding";
 import { hooksDepartamentos, hooksSolicitantes } from "@/hooks/use-cadastros-relatorios-ocorrencia";
 import { hooksLocais } from "@/hooks/use-cadastros";
 import { RELATORIO_STATUS_LABEL } from "@/types/relatorios-ocorrencia";
-import {
-  podeCriarRelatorioOcorrencia,
-  podeImportarPlanilhasRelatoriosOcorrencia,
-} from "@/lib/autorizacao";
+import { useMinhasPermissoes } from "@/hooks/use-permissoes";
 import { PRIORIDADE_LABEL } from "@/types/domain";
 import { BadgeStatusRelatorio } from "@/components/relatorios-ocorrencia/badge-status-relatorio";
 import { BadgePrioridade } from "@/components/dashboard/badges";
 import { BarraAcoesLote } from "@/components/relatorios-ocorrencia/barra-acoes-lote";
-import { KpiCard, KpiCardSkeleton } from "@/components/dashboard/kpi-card";
 import { DialogoImportarRelatorios } from "@/components/relatorios-ocorrencia/dialogo-importar";
 import { Ajuda } from "@/components/ui/ajuda";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -72,42 +47,18 @@ import { CabecalhoOrdenavel } from "@/components/ui/cabecalho-ordenavel";
 
 const fmtData = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
 
-function fmtDias(v: number | null) {
-  return v === null ? "—" : `${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} d`;
-}
-
-function ListaSimples({ itens }: { itens: { nome: string; valor: number }[] }) {
-  if (itens.length === 0) {
-    return <p className="text-sm text-muted-foreground">Sem dados</p>;
-  }
-  return (
-    <ol className="flex flex-col gap-2">
-      {itens.slice(0, 8).map((item, i) => (
-        <li key={item.nome} className="flex items-baseline gap-2 text-sm">
-          <span className="w-5 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
-            {i + 1}º
-          </span>
-          <span className="min-w-0 flex-1 truncate font-medium" title={item.nome}>
-            {item.nome}
-          </span>
-          <span className="tabular-nums text-muted-foreground">{item.valor}</span>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
 const TODOS = "todos";
 
 export function RelatoriosOcorrenciasClient() {
   const router = useRouter();
   const perfil = usePerfil();
   const tenant = useTenant();
-  const editavel = podeCriarRelatorioOcorrencia(perfil.papel);
-  const podeImportar = podeImportarPlanilhasRelatoriosOcorrencia(perfil.papel);
+  const { pode } = useMinhasPermissoes();
+  const editavel = pode("cmal_relatorios", "criar");
+  // Importar planilha cria relatórios em lote — mesma permissão de criar.
+  const podeImportar = pode("cmal_relatorios", "criar");
 
   const { data: lista, isPending } = useRelatoriosOcorrencia();
-  const { data: totalExportacoes } = useTotalExportacoesRelatorio();
   const { data: solicitantes } = hooksSolicitantes.useListar();
   const { data: departamentos } = hooksDepartamentos.useListar();
   const { data: locais } = hooksLocais.useListar();
@@ -120,21 +71,6 @@ export function RelatoriosOcorrenciasClient() {
   const [localId, setLocalId] = useState<string>(TODOS);
   const [importarAberto, setImportarAberto] = useState(false);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
-
-  const kpis = useMemo(
-    () => calcularKpisRelatorio(lista ?? [], totalExportacoes ?? 0),
-    [lista, totalExportacoes]
-  );
-  const rankings = useMemo(
-    () => ({
-      mes: porMes(lista ?? []),
-      local: porLocal(lista ?? []),
-      departamento: porDepartamento(lista ?? []),
-      operador: porOperador(lista ?? []),
-    }),
-    [lista]
-  );
-  const alertas = useMemo(() => calcularAlertasRelatorio(lista ?? []), [lista]);
 
   const filtrados = useMemo(() => {
     const alvo = termo.trim().toLowerCase();
@@ -233,7 +169,8 @@ export function RelatoriosOcorrenciasClient() {
             Relatórios de Ocorrências
           </h1>
           <p className="text-sm text-muted-foreground">
-            Registro e análise de ocorrências da Central de Monitoramento (CMAL)
+            Registro das ocorrências da Central de Monitoramento — indicadores no
+            Dashboard e no Executivo CMAL
           </p>
         </div>
         <div className="flex gap-2">
@@ -260,91 +197,6 @@ export function RelatoriosOcorrenciasClient() {
             </Button>
           )}
         </div>
-      </div>
-
-      {isPending ? (
-        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <KpiCardSkeleton key={i} />
-          ))}
-        </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <KpiCard titulo="Recebidos" valor={String(kpis.recebidos)} icone={Inbox} tom="info" />
-          <KpiCard titulo="Em análise" valor={String(kpis.emAnalise)} icone={FileSearch} tom="alerta" />
-          <KpiCard
-            titulo="Aguardando informações"
-            valor={String(kpis.aguardandoInformacoes)}
-            icone={Clock}
-            tom="perigo"
-          />
-          <KpiCard titulo="Concluídos" valor={String(kpis.concluidos)} icone={CheckCircle2} tom="sucesso" />
-          <KpiCard titulo="Arquivados" valor={String(kpis.arquivados)} icone={Archive} tom="neutro" />
-          <KpiCard
-            titulo="Tempo médio de conclusão"
-            valor={fmtDias(kpis.tempoMedioConclusaoDias)}
-            icone={Clock}
-            tom="neutro"
-            rodape={`${kpis.exportacoesRealizadas} exportações realizadas`}
-          />
-        </div>
-      )}
-
-      {(alertas.prazoVencido.length > 0 || alertas.prazoProximo.length > 0) && (
-        <Card className="border-destructive/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Prazos</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2 text-sm">
-            {alertas.prazoVencido.length > 0 && (
-              <p>
-                <span className="font-semibold text-destructive">
-                  {alertas.prazoVencido.length} relatório(s)
-                </span>{" "}
-                com prazo vencido
-              </p>
-            )}
-            {alertas.prazoProximo.length > 0 && (
-              <p>
-                <span className="font-semibold text-warning">
-                  {alertas.prazoProximo.length} relatório(s)
-                </span>{" "}
-                com prazo nos próximos 3 dias
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Solicitações por local</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isPending ? <Skeleton className="h-40 w-full" /> : <ListaSimples itens={rankings.local} />}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Solicitações por departamento</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isPending ? (
-              <Skeleton className="h-40 w-full" />
-            ) : (
-              <ListaSimples itens={rankings.departamento} />
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Solicitações por operador</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isPending ? <Skeleton className="h-40 w-full" /> : <ListaSimples itens={rankings.operador} />}
-          </CardContent>
-        </Card>
       </div>
 
       <div className="flex flex-wrap gap-3">

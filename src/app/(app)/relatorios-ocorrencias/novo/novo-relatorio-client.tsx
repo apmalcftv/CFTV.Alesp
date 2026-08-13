@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,160 +8,123 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useCriarRelatorioOcorrencia } from "@/hooks/use-relatorios-ocorrencia";
-import { hooksLocais, hooksPredios } from "@/hooks/use-cadastros";
-import { crudLocais } from "@/services/cadastros";
-import { usePerfis } from "@/hooks/use-usuarios";
+import { hooksPredios } from "@/hooks/use-cadastros";
 import {
-  crudDepartamentos,
-  crudSolicitantes,
-  crudTiposOcorrenciaRelatorio,
-  crudTiposSolicitacao,
-} from "@/services/cadastros-relatorios-ocorrencia";
-import {
-  hooksDepartamentos,
-  hooksSolicitantes,
-  hooksTiposOcorrenciaRelatorio,
-  hooksTiposSolicitacao,
-} from "@/hooks/use-cadastros-relatorios-ocorrencia";
-import { PRIORIDADE_LABEL, type Prioridade } from "@/types/domain";
+  idDoDepartamento,
+  idDoLocal,
+  idDoSolicitante,
+  idDoTipoOcorrencia,
+  idDoTipoSolicitacao,
+} from "@/services/catalogo-por-nome";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
 import {
-  CampoComboboxCriavel,
   CampoSelect,
   CampoTexto,
   CampoTextarea,
 } from "@/components/cadastros/campos-formulario";
 
+/** Único campo com opções fechadas do formulário. O operador não cria
+    outros tipos — a CMAL trabalha só com estes dois. */
+const TIPOS_SOLICITACAO = ["Análise de Imagens", "Preservação de Imagens"] as const;
+
+const OPCOES_TIPO_SOLICITACAO = TIPOS_SOLICITACAO.map((t) => ({ valor: t, rotulo: t }));
+
+// Só o tipo de solicitação trava o envio. Todo o resto é texto livre e pode
+// ficar em branco: o operador da CMAL abre o relatório com o que tem na mão
+// e completa durante a investigação.
 const schemaNovo = z.object({
+  // começa vazio de propósito: é a única escolha que o operador precisa
+  // fazer conscientemente ao abrir o relatório
+  tipo_solicitacao: z
+    .string()
+    .refine((v) => (TIPOS_SOLICITACAO as readonly string[]).includes(v), {
+      message: "Selecione o tipo de solicitação",
+    }),
   numero_memorando: z.string(),
-  tipo_solicitacao_id: z.string(),
-  solicitante_id: z.string(),
-  departamento_id: z.string(),
-  data_solicitacao: z.string().min(1, "Informe a data da solicitação"),
-  prioridade: z.string().min(1),
-  operador_id: z.string(),
+  solicitante: z.string(),
+  departamento: z.string(),
+  data_solicitacao: z.string(),
   data_limite: z.string(),
-  classificacao: z.string(),
   data_fato: z.string(),
   hora_aproximada: z.string(),
-  local_id: z.string(),
-  descricao_fato: z.string().min(1, "Descreva o ocorrido"),
-  tipo_ocorrencia_id: z.string(),
+  local: z.string(),
+  tipo_ocorrencia: z.string(),
+  descricao_fato: z.string(),
   pessoas_envolvidas: z.string(),
-  observacoes_fato: z.string(),
 });
 type FormNovo = z.infer<typeof schemaNovo>;
 
+const hoje = () => new Date().toISOString().slice(0, 10);
+
 const valoresPadrao: FormNovo = {
+  tipo_solicitacao: "",
   numero_memorando: "",
-  tipo_solicitacao_id: "",
-  solicitante_id: "",
-  departamento_id: "",
-  data_solicitacao: new Date().toISOString().slice(0, 10),
-  prioridade: "media",
-  operador_id: "",
+  solicitante: "",
+  departamento: "",
+  data_solicitacao: hoje(),
   data_limite: "",
-  classificacao: "",
   data_fato: "",
   hora_aproximada: "",
-  local_id: "",
+  local: "",
+  tipo_ocorrencia: "",
   descricao_fato: "",
-  tipo_ocorrencia_id: "",
   pessoas_envolvidas: "",
-  observacoes_fato: "",
 };
-
-const OPCOES_PRIORIDADE = Object.entries(PRIORIDADE_LABEL).map(([valor, rotulo]) => ({
-  valor,
-  rotulo,
-}));
 
 export function NovoRelatorioClient() {
   const router = useRouter();
   const criar = useCriarRelatorioOcorrencia();
-
-  const { data: locais } = hooksLocais.useListar();
   const { data: predios } = hooksPredios.useListar();
-  const { data: perfis } = usePerfis();
-  const { data: tiposSolicitacao } = hooksTiposSolicitacao.useListar();
-  const { data: solicitantes } = hooksSolicitantes.useListar();
-  const { data: departamentos } = hooksDepartamentos.useListar();
-  const { data: tiposOcorrencia } = hooksTiposOcorrenciaRelatorio.useListar();
+  // cobre as duas etapas do envio: resolver os catálogos e gravar o relatório
+  const [salvando, setSalvando] = useState(false);
 
   const form = useForm<FormNovo>({
     resolver: zodResolver(schemaNovo),
     defaultValues: valoresPadrao,
   });
 
-  const opcoesLocal = (locais ?? []).map((l) => ({ valor: l.id, rotulo: l.nome }));
-  const opcoesOperador = (perfis ?? [])
-    .filter((p) => p.status === "aprovado")
-    .map((p) => ({ valor: p.id, rotulo: p.nome }));
-  const opcoesTipoSolicitacao = (tiposSolicitacao ?? []).map((t) => ({
-    valor: t.id,
-    rotulo: t.nome,
-  }));
-  const opcoesSolicitante = (solicitantes ?? []).map((s) => ({ valor: s.id, rotulo: s.nome }));
-  const opcoesDepartamento = (departamentos ?? []).map((d) => ({ valor: d.id, rotulo: d.nome }));
-  const opcoesTipoOcorrencia = (tiposOcorrencia ?? []).map((t) => ({
-    valor: t.id,
-    rotulo: t.nome,
-  }));
+  async function onSubmit(v: FormNovo) {
+    setSalvando(true);
+    try {
+      // Texto digitado -> id de catálogo (reaproveita ou cria). Em paralelo:
+      // são cinco consultas independentes entre si.
+      const [tipoSolicitacaoId, solicitanteId, departamentoId, localId, tipoOcorrenciaId] =
+        await Promise.all([
+          idDoTipoSolicitacao(v.tipo_solicitacao),
+          idDoSolicitante(v.solicitante),
+          idDoDepartamento(v.departamento),
+          idDoLocal(v.local, predios?.[0]?.id),
+          idDoTipoOcorrencia(v.tipo_ocorrencia),
+        ]);
 
-  async function aoCriarLocal(nome: string): Promise<string | undefined> {
-    const predioId = predios?.[0]?.id;
-    if (!predioId) {
-      toast.error("Cadastre um prédio antes de criar um local");
-      return undefined;
-    }
-    const novo = await crudLocais.criar({ nome, predio_id: predioId });
-    return novo.id;
-  }
-  async function aoCriarTipoSolicitacao(nome: string) {
-    const novo = await crudTiposSolicitacao.criar({ nome });
-    return novo.id;
-  }
-  async function aoCriarSolicitante(nome: string) {
-    const novo = await crudSolicitantes.criar({ nome });
-    return novo.id;
-  }
-  async function aoCriarDepartamento(nome: string) {
-    const novo = await crudDepartamentos.criar({ nome });
-    return novo.id;
-  }
-  async function aoCriarTipoOcorrencia(nome: string) {
-    const novo = await crudTiposOcorrenciaRelatorio.criar({ nome });
-    return novo.id;
-  }
-
-  function onSubmit(v: FormNovo) {
-    criar.mutate(
-      {
-        numero_memorando: v.numero_memorando || null,
-        tipo_solicitacao_id: v.tipo_solicitacao_id || null,
-        solicitante_id: v.solicitante_id || null,
-        departamento_id: v.departamento_id || null,
-        data_solicitacao: v.data_solicitacao,
-        prioridade: v.prioridade as Prioridade,
-        operador_id: v.operador_id || null,
+      const relatorio = await criar.mutateAsync({
+        tipo_solicitacao_id: tipoSolicitacaoId,
+        solicitante_id: solicitanteId,
+        departamento_id: departamentoId,
+        local_id: localId,
+        tipo_ocorrencia_id: tipoOcorrenciaId,
+        numero_memorando: v.numero_memorando.trim() || null,
+        // colunas NOT NULL: caem no padrão em vez de bloquear o envio
+        data_solicitacao: v.data_solicitacao || hoje(),
+        descricao_fato: v.descricao_fato,
         data_limite: v.data_limite || null,
-        classificacao: v.classificacao || null,
         data_fato: v.data_fato || null,
         hora_aproximada: v.hora_aproximada || null,
-        local_id: v.local_id || null,
-        descricao_fato: v.descricao_fato,
-        tipo_ocorrencia_id: v.tipo_ocorrencia_id || null,
-        pessoas_envolvidas: v.pessoas_envolvidas || null,
-        observacoes_fato: v.observacoes_fato || null,
-      },
-      {
-        onSuccess: (relatorio) => {
-          router.push(`/relatorios-ocorrencias/${relatorio.id}`);
-        },
+        pessoas_envolvidas: v.pessoas_envolvidas.trim() || null,
+      });
+
+      router.push(`/relatorios-ocorrencias/${relatorio.id}`);
+    } catch (e) {
+      // erro de gravação já vira toast no hook; aqui cobre a resolução dos catálogos
+      if (!criar.isError) {
+        toast.error("Não foi possível criar o relatório", {
+          description: (e as Error).message,
+        });
       }
-    );
+      setSalvando(false);
+    }
   }
 
   return (
@@ -176,8 +140,8 @@ export function NovoRelatorioClient() {
         <div>
           <h1 className="font-heading text-2xl font-semibold tracking-tight">Novo relatório</h1>
           <p className="text-sm text-muted-foreground">
-            Dados da solicitação e do fato — a análise, exportações, resultado e anexos são
-            preenchidos depois de criado.
+            Registre o que já se sabe — os demais dados podem ser completados durante a
+            investigação.
           </p>
         </div>
       </div>
@@ -189,64 +153,31 @@ export function NovoRelatorioClient() {
               <CardTitle className="text-sm">Dados da solicitação</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
-              <CampoTexto control={form.control} name="numero_memorando" label="Número do memorando (opcional)" />
-              <CampoComboboxCriavel
+              <CampoTexto
                 control={form.control}
-                name="tipo_solicitacao_id"
-                label="Tipo de solicitação (opcional)"
-                placeholder="Selecione ou crie"
-                opcoes={opcoesTipoSolicitacao}
-                aoCriar={aoCriarTipoSolicitacao}
-                rotuloCriar={(t) => `Criar "${t}"`}
+                name="numero_memorando"
+                label="Número do memorando"
               />
-              <CampoComboboxCriavel
+              <CampoSelect
                 control={form.control}
-                name="solicitante_id"
-                label="Solicitante (opcional)"
-                placeholder="Selecione ou crie"
-                opcoes={opcoesSolicitante}
-                aoCriar={aoCriarSolicitante}
-                rotuloCriar={(t) => `Criar "${t}"`}
+                name="tipo_solicitacao"
+                label="Tipo de solicitação"
+                placeholder="Selecione"
+                opcoes={OPCOES_TIPO_SOLICITACAO}
               />
-              <CampoComboboxCriavel
-                control={form.control}
-                name="departamento_id"
-                label="Departamento (opcional)"
-                placeholder="Selecione ou crie"
-                opcoes={opcoesDepartamento}
-                aoCriar={aoCriarDepartamento}
-                rotuloCriar={(t) => `Criar "${t}"`}
-              />
+              <CampoTexto control={form.control} name="solicitante" label="Solicitante" />
+              <CampoTexto control={form.control} name="departamento" label="Departamento" />
               <CampoTexto
                 control={form.control}
                 name="data_solicitacao"
                 label="Data da solicitação"
                 type="date"
               />
-              <CampoSelect
-                control={form.control}
-                name="prioridade"
-                label="Prioridade"
-                placeholder="Selecione"
-                opcoes={OPCOES_PRIORIDADE}
-              />
-              <CampoSelect
-                control={form.control}
-                name="operador_id"
-                label="Operador responsável (opcional)"
-                placeholder="Selecione"
-                opcoes={opcoesOperador}
-              />
               <CampoTexto
                 control={form.control}
                 name="data_limite"
-                label="Data limite (opcional)"
+                label="Data limite"
                 type="date"
-              />
-              <CampoTexto
-                control={form.control}
-                name="classificacao"
-                label="Classificação (opcional)"
               />
             </CardContent>
           </Card>
@@ -256,30 +187,23 @@ export function NovoRelatorioClient() {
               <CardTitle className="text-sm">Dados do fato</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
-              <CampoTexto control={form.control} name="data_fato" label="Data do fato (opcional)" type="date" />
+              <CampoTexto
+                control={form.control}
+                name="data_fato"
+                label="Data do fato"
+                type="date"
+              />
               <CampoTexto
                 control={form.control}
                 name="hora_aproximada"
-                label="Hora aproximada (opcional)"
+                label="Hora aproximada"
                 type="time"
               />
-              <CampoComboboxCriavel
+              <CampoTexto control={form.control} name="local" label="Local" />
+              <CampoTexto
                 control={form.control}
-                name="local_id"
-                label="Local (opcional)"
-                placeholder="Selecione ou crie"
-                opcoes={opcoesLocal}
-                aoCriar={aoCriarLocal}
-                rotuloCriar={(t) => `Criar local "${t}"`}
-              />
-              <CampoComboboxCriavel
-                control={form.control}
-                name="tipo_ocorrencia_id"
-                label="Tipo da ocorrência (opcional)"
-                placeholder="Selecione ou crie"
-                opcoes={opcoesTipoOcorrencia}
-                aoCriar={aoCriarTipoOcorrencia}
-                rotuloCriar={(t) => `Criar "${t}"`}
+                name="tipo_ocorrencia"
+                label="Tipo da ocorrência"
               />
               <div className="sm:col-span-2">
                 <CampoTextarea
@@ -293,21 +217,14 @@ export function NovoRelatorioClient() {
                 <CampoTextarea
                   control={form.control}
                   name="pessoas_envolvidas"
-                  label="Pessoas envolvidas (opcional)"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <CampoTextarea
-                  control={form.control}
-                  name="observacoes_fato"
-                  label="Observações (opcional)"
+                  label="Pessoas envolvidas"
                 />
               </div>
             </CardContent>
           </Card>
 
-          <Button type="submit" disabled={criar.isPending} className="self-start">
-            {criar.isPending && <Loader2 className="size-4 animate-spin" />}
+          <Button type="submit" disabled={salvando} className="self-start">
+            {salvando && <Loader2 className="size-4 animate-spin" />}
             Criar relatório
           </Button>
         </form>

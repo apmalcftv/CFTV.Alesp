@@ -76,7 +76,7 @@ export function ExecutivoClient() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-semibold tracking-tight">
-            Visão Executiva
+            Executivo Câmeras
           </h1>
           <p className="text-sm text-muted-foreground">
             Indicadores estratégicos para a diretoria

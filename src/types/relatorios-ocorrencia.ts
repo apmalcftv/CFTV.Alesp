@@ -98,7 +98,10 @@ export interface RelatorioTimelineEvento {
   horario_inicial: string;
   horario_final: string | null;
   camera_id: string | null;
+  /** Vínculo com o catálogo `locais`, preservado dos eventos antigos. */
   local_id: string | null;
+  /** Local em texto livre — é o que o grid grava hoje. */
+  local_texto: string | null;
   descricao: string;
   operador_id: string | null;
   marcador_id: string | null;

@@ -17,7 +17,6 @@ import {
 } from "react-data-grid";
 import { Copy, Loader2, Plus, Redo2, Search, Trash2, Undo2, Upload } from "lucide-react";
 import type { CameraDash } from "@/services/dashboard";
-import type { Local } from "@/types/domain";
 import type { PerfilUsuario } from "@/types/domain";
 import type { Marcador } from "@/types/relatorios-ocorrencia";
 import { lerPlanilhaAnaliseModelo } from "@/services/importador-timeline";
@@ -79,10 +78,8 @@ export function GridAnalise({
   operadorId,
   operadorTexto,
   cameras,
-  locais,
-  perfis,
+  operadores,
   marcadores,
-  aoCriarLocal,
   aoCriarMarcador,
   editavel,
 }: {
@@ -96,10 +93,11 @@ export function GridAnalise({
   operadorId: string | null;
   operadorTexto: string;
   cameras: CameraDash[];
-  locais: Local[];
-  perfis: PerfilUsuario[];
+  /** Já vem filtrado por `listarOperadoresAnalise()` — o componente não
+      reaplica regra de papel nenhuma, para não existir uma segunda versão
+      da regra divergindo da do serviço. */
+  operadores: PerfilUsuario[];
   marcadores: Marcador[];
-  aoCriarLocal: (nome: string) => Promise<{ id: string; texto: string } | undefined>;
   aoCriarMarcador: (nome: string) => Promise<{ id: string; texto: string } | undefined>;
   editavel: boolean;
 }) {
@@ -127,13 +125,9 @@ export function GridAnalise({
     () => cameras.map((c) => ({ id: c.id, texto: `Câmera ${c.numero}` })),
     [cameras]
   );
-  const opcoesLocal = useMemo(() => locais.map((l) => ({ id: l.id, texto: l.nome })), [locais]);
   const opcoesOperador = useMemo(
-    () =>
-      perfis
-        .filter((p) => p.status === "aprovado")
-        .map((p) => ({ id: p.id, texto: p.nome })),
-    [perfis]
+    () => operadores.map((p) => ({ id: p.id, texto: p.nome })),
+    [operadores]
   );
   const opcoesMarcador = useMemo(
     () => marcadores.map((m) => ({ id: m.id, texto: m.nome })),
@@ -148,17 +142,6 @@ export function GridAnalise({
         listar: () => opcoesCamera,
       }),
     [opcoesCamera]
-  );
-  const EditorLocal = useMemo(
-    () =>
-      criarEditorAutocomplete({
-        campoId: "localId",
-        campoTexto: "localTexto",
-        listar: () => opcoesLocal,
-        criavel: true,
-        aoCriar: aoCriarLocal,
-      }),
-    [opcoesLocal, aoCriarLocal]
   );
   const EditorOperador = useMemo(
     () =>
@@ -227,10 +210,12 @@ export function GridAnalise({
       },
       {
         key: "localTexto",
+        // Texto livre: a referência do lugar é escrita como faz sentido na
+        // investigação, sem depender do catálogo `locais`.
         name: "Local",
         width: 150,
         editable: editavel,
-        renderEditCell: EditorLocal,
+        renderEditCell: textEditor,
       },
       {
         key: "descricao",
@@ -262,7 +247,7 @@ export function GridAnalise({
         renderEditCell: textEditor,
       },
     ],
-    [editavel, numeroPorId, EditorCamera, EditorLocal, EditorOperador, EditorMarcador]
+    [editavel, numeroPorId, EditorCamera, EditorOperador, EditorMarcador]
   );
 
   const linhasFiltradas = useMemo(() => {

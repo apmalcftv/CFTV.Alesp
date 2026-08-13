@@ -6,7 +6,6 @@ import {
   useAdicionarComentarioHistorico,
   useHistoricoRelatorio,
 } from "@/hooks/use-relatorio-historico";
-import { RELATORIO_STATUS_LABEL, type RelatorioStatus } from "@/types/relatorios-ocorrencia";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,47 +14,75 @@ import { Textarea } from "@/components/ui/textarea";
 const fmtDataHora = new Intl.DateTimeFormat("pt-BR", {
   day: "2-digit",
   month: "2-digit",
-  year: "2-digit",
+  year: "numeric",
   hour: "2-digit",
   minute: "2-digit",
 });
 
 const ICONE_TIPO: Record<string, string> = {
   criacao: "🆕",
-  mudanca_status: "🔄",
+  adicao: "➕",
   edicao: "✏️",
+  exclusao: "🗑️",
   comentario: "💬",
+  edicao_analise: "✏️",
+  adicao_linha_analise: "➕",
+  exclusao_linha_analise: "🗑️",
+  // legado: eventos gravados antes da trilha de auditoria
+  mudanca_status: "✏️",
 };
 
+/** Ação exibida por tipo de evento. Os tipos `*_analise` vêm do grid da
+    aba Análise; `mudanca_status` é legado e hoje entra como edição. */
+const ACAO_LABEL: Record<string, string> = {
+  criacao: "Criou o relatório",
+  adicao: "Adicionou",
+  edicao: "Editou",
+  exclusao: "Excluiu",
+  mudanca_status: "Editou",
+  edicao_analise: "Editou Análise",
+  adicao_linha_analise: "Adicionou linha na Análise",
+  exclusao_linha_analise: "Excluiu linha da Análise",
+};
+
+/** Rótulos dos campos do relatório (colunas do banco) e das colunas do
+    grid da aba Análise. Campo desconhecido cai no próprio nome. */
 const CAMPO_LABEL: Record<string, string> = {
+  numero_memorando: "Número do memorando",
+  tipo_solicitacao_id: "Tipo de solicitação",
+  solicitante_id: "Solicitante",
+  departamento_id: "Departamento",
+  data_solicitacao: "Data da solicitação",
+  data_limite: "Data limite",
   status: "Status",
   prioridade: "Prioridade",
   operador_id: "Operador responsável",
-  departamento_id: "Departamento",
-  data_limite: "Data limite",
+  classificacao: "Classificação",
+  data_fato: "Data do fato",
+  hora_aproximada: "Hora aproximada",
+  local_id: "Local",
+  tipo_ocorrencia_id: "Tipo da ocorrência",
+  descricao_fato: "Descrição do ocorrido",
+  pessoas_envolvidas: "Pessoas envolvidas",
+  observacoes_fato: "Observações",
+  conclusao: "Conclusão",
+  providencias_adotadas: "Providências adotadas",
+  resumo_executivo: "Resumo executivo",
+  encaminhamento: "Encaminhamento",
+  data_conclusao: "Data da conclusão",
+  concluido_por: "Responsável pela conclusão",
+  anexo: "Anexo",
+  // colunas do grid da aba Análise
+  data: "Data",
+  horarioInicial: "Horário inicial",
+  horarioFinal: "Horário final",
+  cameraTexto: "Câmera",
+  localTexto: "Local",
+  descricao: "Descrição do Evento",
+  operadorTexto: "Operador",
+  marcadorTexto: "Marcador",
+  comentarioInterno: "Comentário interno",
 };
-
-function textoHistorico(e: {
-  tipo: string;
-  campo: string | null;
-  valor_anterior: string | null;
-  valor_novo: string | null;
-  mensagem: string | null;
-}) {
-  if (e.tipo === "criacao") return e.mensagem ?? "Relatório criado";
-  if (e.tipo === "comentario") return e.mensagem ?? "";
-  if (e.campo === "status") {
-    const de = e.valor_anterior
-      ? (RELATORIO_STATUS_LABEL[e.valor_anterior as RelatorioStatus] ?? e.valor_anterior)
-      : "—";
-    const para = e.valor_novo
-      ? (RELATORIO_STATUS_LABEL[e.valor_novo as RelatorioStatus] ?? e.valor_novo)
-      : "—";
-    return `Status alterado de "${de}" para "${para}"`;
-  }
-  const rotulo = e.campo ? (CAMPO_LABEL[e.campo] ?? e.campo) : "Campo";
-  return `${rotulo} alterado`;
-}
 
 /** Aba 7 — histórico automático, sempre em ordem cronológica reversa,
     nunca editável/excluível (append-only por design de RLS). */
@@ -110,10 +137,24 @@ export function SecaoHistorico({
               <li key={e.id} className="flex gap-3 text-sm">
                 <span className="shrink-0">{ICONE_TIPO[e.tipo] ?? "•"}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="whitespace-pre-wrap">{textoHistorico(e)}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {e.autor?.nome ?? "Sistema"} · {fmtDataHora.format(new Date(e.criado_em))}
+                  <p className="font-medium">
+                    {e.autor?.nome ?? "Sistema"} — {fmtDataHora.format(new Date(e.criado_em))}
                   </p>
+                  {e.tipo === "comentario" ? (
+                    <p className="whitespace-pre-wrap">{e.mensagem ?? ""}</p>
+                  ) : (
+                    <>
+                      <p>{ACAO_LABEL[e.tipo] ?? e.tipo}</p>
+                      {/* Só o nome do campo: a trilha nunca mostra valor
+                          anterior nem novo, inclusive nos registros
+                          antigos que ainda os têm gravados. */}
+                      {e.campo && (
+                        <p className="text-muted-foreground">
+                          Campo: {CAMPO_LABEL[e.campo] ?? e.campo}
+                        </p>
+                      )}
+                    </>
+                  )}
                 </div>
               </li>
             ))}

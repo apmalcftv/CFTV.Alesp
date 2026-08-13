@@ -30,9 +30,14 @@ function IconeAnexo({ tipo }: { tipo: RelatorioAnexo["tipo"] }) {
 export function SecaoAnexos({
   relatorioId,
   editavel,
+  podeExcluir,
 }: {
   relatorioId: string;
+  /** Permissão `editar`: anexar e substituir. Não dá direito de apagar. */
   editavel: boolean;
+  /** Permissão `excluir`, independente de `editar` na matriz. Espelha as
+      policies de `relatorio_anexos` e do bucket `anexos-relatorios`. */
+  podeExcluir: boolean;
 }) {
   const tenant = useTenant();
   const { data: anexos, isPending } = useAnexosRelatorio(relatorioId);
@@ -101,7 +106,7 @@ export function SecaoAnexos({
                 >
                   {a.storage_path.split("/").pop()}
                 </button>
-                {editavel && (
+                {podeExcluir && (
                   <Button
                     variant="ghost"
                     size="icon-sm"

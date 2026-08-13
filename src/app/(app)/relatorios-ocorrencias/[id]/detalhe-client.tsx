@@ -6,38 +6,32 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, FileDown, Loader2, Printer, Share2 } from "lucide-react";
-import { useRelatorioOcorrencia, useAtualizarRelatorioOcorrencia } from "@/hooks/use-relatorios-ocorrencia";
+import { ArrowLeft, FileDown, Loader2, Printer, Share2, Trash2 } from "lucide-react";
+import {
+  useRelatorioOcorrencia,
+  useAtualizarRelatorioOcorrencia,
+  useExcluirRelatorioOcorrencia,
+} from "@/hooks/use-relatorios-ocorrencia";
 import { useTimelineRelatorio } from "@/hooks/use-relatorio-timeline";
 import { useExportacoesRelatorio } from "@/hooks/use-relatorio-exportacoes";
-import { hooksLocais, hooksPredios } from "@/hooks/use-cadastros";
-import { crudLocais } from "@/services/cadastros";
-import { usePerfis } from "@/hooks/use-usuarios";
+import { hooksPredios } from "@/hooks/use-cadastros";
 import {
-  crudDepartamentos,
-  crudSolicitantes,
-  crudTiposOcorrenciaRelatorio,
-  crudTiposSolicitacao,
-} from "@/services/cadastros-relatorios-ocorrencia";
-import {
-  hooksDepartamentos,
-  hooksSolicitantes,
-  hooksTiposOcorrenciaRelatorio,
-  hooksTiposSolicitacao,
-} from "@/hooks/use-cadastros-relatorios-ocorrencia";
+  idDoDepartamento,
+  idDoLocal,
+  idDoSolicitante,
+  idDoTipoOcorrencia,
+  idDoTipoSolicitacao,
+} from "@/services/catalogo-por-nome";
 import {
   exportarRelatorioExcel,
   exportarTimelineExcel,
   gerarBlobRelatorioExcel,
+  localDoEvento,
 } from "@/services/exportar-relatorios-ocorrencia";
 import { compartilharArquivo } from "@/services/compartilhamento";
-import { usePerfil } from "@/components/perfil-provider";
-import {
-  PRIORIDADE_LABEL,
-  type Prioridade,
-} from "@/types/domain";
+import { PRIORIDADE_LABEL } from "@/types/domain";
 import { RELATORIO_STATUS_LABEL, type RelatorioStatus } from "@/types/relatorios-ocorrencia";
-import { podeEditarRelatorioOcorrencia } from "@/lib/autorizacao";
+import { useMinhasPermissoes } from "@/hooks/use-permissoes";
 import { BadgeStatusRelatorio } from "@/components/relatorios-ocorrencia/badge-status-relatorio";
 import { BadgePrioridade } from "@/components/dashboard/badges";
 import { SecaoTimeline } from "@/components/relatorios-ocorrencia/secao-timeline";
@@ -51,7 +45,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Form } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  CampoComboboxCriavel,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   CampoSelect,
   CampoTexto,
   CampoTextarea,
@@ -60,73 +63,77 @@ import {
 const fmtData = (v: string | null) =>
   v ? new Date(`${v}T00:00:00`).toLocaleDateString("pt-BR") : "—";
 
-const OPCOES_PRIORIDADE = Object.entries(PRIORIDADE_LABEL).map(([valor, rotulo]) => ({
-  valor,
-  rotulo,
-}));
+/** Mesmas duas opções fechadas da tela de criação — o operador não cria
+    outros tipos de solicitação. */
+const TIPOS_SOLICITACAO = ["Análise de Imagens", "Preservação de Imagens"] as const;
+
 const OPCOES_STATUS = Object.entries(RELATORIO_STATUS_LABEL).map(([valor, rotulo]) => ({
   valor,
   rotulo,
 }));
 
+// Espelha a tela de criação: tudo texto livre, só o tipo de solicitação
+// trava o envio. Data e hora seguem com os componentes nativos, e Status
+// continua como seleção por ser enum do banco. O operador responsável
+// saiu daqui: agora é pedido no momento de salvar a análise, que é quando
+// se sabe de fato quem conduziu o trabalho.
 const schemaSolicitacao = z.object({
   numero_memorando: z.string(),
-  tipo_solicitacao_id: z.string(),
-  solicitante_id: z.string(),
-  departamento_id: z.string(),
-  data_solicitacao: z.string().min(1),
-  prioridade: z.string().min(1),
-  operador_id: z.string(),
+  tipo_solicitacao: z
+    .string()
+    .refine((v) => (TIPOS_SOLICITACAO as readonly string[]).includes(v), {
+      message: "Selecione o tipo de solicitação",
+    }),
+  solicitante: z.string(),
+  departamento: z.string(),
+  data_solicitacao: z.string(),
   data_limite: z.string(),
   status: z.string().min(1),
-  classificacao: z.string(),
 });
 type FormSolicitacao = z.infer<typeof schemaSolicitacao>;
 
 const schemaFato = z.object({
   data_fato: z.string(),
   hora_aproximada: z.string(),
-  local_id: z.string(),
-  descricao_fato: z.string().min(1, "Descreva o ocorrido"),
-  tipo_ocorrencia_id: z.string(),
+  local: z.string(),
+  descricao_fato: z.string(),
+  tipo_ocorrencia: z.string(),
   pessoas_envolvidas: z.string(),
-  observacoes_fato: z.string(),
 });
 type FormFato = z.infer<typeof schemaFato>;
 
 export function DetalheRelatorioClient({ id }: { id: string }) {
   const router = useRouter();
-  const perfil = usePerfil();
-  const editavel = podeEditarRelatorioOcorrencia(perfil.papel);
+  // Espelho da matriz configurável: quem decide de verdade é a RLS.
+  const { pode } = useMinhasPermissoes();
+  const editavel = pode("cmal_relatorios", "editar");
+  const podeExcluir = pode("cmal_relatorios", "excluir");
   const { data: relatorio, isPending } = useRelatorioOcorrencia(id);
   const { data: timeline } = useTimelineRelatorio(id);
   const { data: exportacoes } = useExportacoesRelatorio(id);
   const atualizar = useAtualizarRelatorioOcorrencia(id);
+  const excluir = useExcluirRelatorioOcorrencia();
 
-  const { data: locais } = hooksLocais.useListar();
   const { data: predios } = hooksPredios.useListar();
-  const { data: perfis } = usePerfis();
-  const { data: tiposSolicitacao } = hooksTiposSolicitacao.useListar();
-  const { data: solicitantes } = hooksSolicitantes.useListar();
-  const { data: departamentos } = hooksDepartamentos.useListar();
-  const { data: tiposOcorrencia } = hooksTiposOcorrenciaRelatorio.useListar();
 
   const [modoImpressao, setModoImpressao] = useState<"completo" | "timeline">("completo");
+  const [salvando, setSalvando] = useState(false);
+  const [confirmarExclusao, setConfirmarExclusao] = useState(false);
 
   const formSolicitacao = useForm<FormSolicitacao>({
     resolver: zodResolver(schemaSolicitacao),
+    // os campos de catálogo carregam o NOME (via join), não o id — é o
+    // texto que o operador edita; a conversão de volta para id acontece
+    // no envio
     values: relatorio
       ? {
           numero_memorando: relatorio.numero_memorando ?? "",
-          tipo_solicitacao_id: relatorio.tipo_solicitacao_id ?? "",
-          solicitante_id: relatorio.solicitante_id ?? "",
-          departamento_id: relatorio.departamento_id ?? "",
+          tipo_solicitacao: relatorio.tipo_solicitacao?.nome ?? "",
+          solicitante: relatorio.solicitante?.nome ?? "",
+          departamento: relatorio.departamento?.nome ?? "",
           data_solicitacao: relatorio.data_solicitacao,
-          prioridade: relatorio.prioridade,
-          operador_id: relatorio.operador_id ?? "",
           data_limite: relatorio.data_limite ?? "",
           status: relatorio.status,
-          classificacao: relatorio.classificacao ?? "",
         }
       : undefined,
   });
@@ -137,11 +144,10 @@ export function DetalheRelatorioClient({ id }: { id: string }) {
       ? {
           data_fato: relatorio.data_fato ?? "",
           hora_aproximada: relatorio.hora_aproximada ?? "",
-          local_id: relatorio.local_id ?? "",
+          local: relatorio.local?.nome ?? "",
           descricao_fato: relatorio.descricao_fato,
-          tipo_ocorrencia_id: relatorio.tipo_ocorrencia_id ?? "",
+          tipo_ocorrencia: relatorio.tipo_ocorrencia?.nome ?? "",
           pessoas_envolvidas: relatorio.pessoas_envolvidas ?? "",
-          observacoes_fato: relatorio.observacoes_fato ?? "",
         }
       : undefined,
   });
@@ -155,50 +161,77 @@ export function DetalheRelatorioClient({ id }: { id: string }) {
     );
   }
 
-  async function aoCriarLocal(nome: string): Promise<string | undefined> {
-    const predioId = predios?.[0]?.id;
-    if (!predioId) {
-      toast.error("Cadastre um prédio antes de criar um local");
-      return undefined;
+  /** As duas opções fixas. Relatórios antigos (importados, por exemplo)
+      podem apontar para um tipo fora dessa lista — nesse caso ele entra
+      como opção só para não sumir da tela; continua impossível criar
+      um tipo novo. */
+  const tipoAtual = relatorio.tipo_solicitacao?.nome;
+  const opcoesTipoSolicitacao = [
+    ...(tipoAtual && !(TIPOS_SOLICITACAO as readonly string[]).includes(tipoAtual)
+      ? [tipoAtual]
+      : []),
+    ...TIPOS_SOLICITACAO,
+  ].map((t) => ({ valor: t, rotulo: t }));
+
+  async function onSubmitSolicitacao(v: FormSolicitacao) {
+    setSalvando(true);
+    try {
+      const [tipoSolicitacaoId, solicitanteId, departamentoId] = await Promise.all([
+        idDoTipoSolicitacao(v.tipo_solicitacao),
+        idDoSolicitante(v.solicitante),
+        idDoDepartamento(v.departamento),
+      ]);
+      await atualizar.mutateAsync({
+        numero_memorando: v.numero_memorando.trim() || null,
+        tipo_solicitacao_id: tipoSolicitacaoId,
+        solicitante_id: solicitanteId,
+        departamento_id: departamentoId,
+        // coluna NOT NULL: cai no valor atual em vez de bloquear o envio
+        data_solicitacao: v.data_solicitacao || relatorio!.data_solicitacao,
+        data_limite: v.data_limite || null,
+        status: v.status as RelatorioStatus,
+      });
+    } catch (e) {
+      if (!atualizar.isError) {
+        toast.error("Não foi possível salvar", { description: (e as Error).message });
+      }
+    } finally {
+      setSalvando(false);
     }
-    const novo = await crudLocais.criar({ nome, predio_id: predioId });
-    return novo.id;
   }
 
-  const opcoesLocal = (locais ?? []).map((l) => ({ valor: l.id, rotulo: l.nome }));
-  const opcoesOperador = (perfis ?? [])
-    .filter((p) => p.status === "aprovado")
-    .map((p) => ({ valor: p.id, rotulo: p.nome }));
-  const opcoesTipoSolicitacao = (tiposSolicitacao ?? []).map((t) => ({ valor: t.id, rotulo: t.nome }));
-  const opcoesSolicitante = (solicitantes ?? []).map((s) => ({ valor: s.id, rotulo: s.nome }));
-  const opcoesDepartamento = (departamentos ?? []).map((d) => ({ valor: d.id, rotulo: d.nome }));
-  const opcoesTipoOcorrencia = (tiposOcorrencia ?? []).map((t) => ({ valor: t.id, rotulo: t.nome }));
-
-  function onSubmitSolicitacao(v: FormSolicitacao) {
-    atualizar.mutate({
-      numero_memorando: v.numero_memorando || null,
-      tipo_solicitacao_id: v.tipo_solicitacao_id || null,
-      solicitante_id: v.solicitante_id || null,
-      departamento_id: v.departamento_id || null,
-      data_solicitacao: v.data_solicitacao,
-      prioridade: v.prioridade as Prioridade,
-      operador_id: v.operador_id || null,
-      data_limite: v.data_limite || null,
-      status: v.status as RelatorioStatus,
-      classificacao: v.classificacao || null,
-    });
+  async function onSubmitFato(v: FormFato) {
+    setSalvando(true);
+    try {
+      const [localId, tipoOcorrenciaId] = await Promise.all([
+        idDoLocal(v.local, predios?.[0]?.id),
+        idDoTipoOcorrencia(v.tipo_ocorrencia),
+      ]);
+      await atualizar.mutateAsync({
+        data_fato: v.data_fato || null,
+        hora_aproximada: v.hora_aproximada || null,
+        local_id: localId,
+        descricao_fato: v.descricao_fato,
+        tipo_ocorrencia_id: tipoOcorrenciaId,
+        pessoas_envolvidas: v.pessoas_envolvidas.trim() || null,
+      });
+    } catch (e) {
+      if (!atualizar.isError) {
+        toast.error("Não foi possível salvar", { description: (e as Error).message });
+      }
+    } finally {
+      setSalvando(false);
+    }
   }
 
-  function onSubmitFato(v: FormFato) {
-    atualizar.mutate({
-      data_fato: v.data_fato || null,
-      hora_aproximada: v.hora_aproximada || null,
-      local_id: v.local_id || null,
-      descricao_fato: v.descricao_fato,
-      tipo_ocorrencia_id: v.tipo_ocorrencia_id || null,
-      pessoas_envolvidas: v.pessoas_envolvidas || null,
-      observacoes_fato: v.observacoes_fato || null,
-    });
+  async function confirmarExcluir() {
+    try {
+      await excluir.mutateAsync(id);
+      setConfirmarExclusao(false);
+      router.push("/relatorios-ocorrencias");
+    } catch {
+      // o toast de erro já vem do hook; o diálogo fica aberto para retentar
+    }
   }
 
   function imprimir(modo: "completo" | "timeline") {
@@ -252,8 +285,48 @@ export function DetalheRelatorioClient({ id }: { id: string }) {
             <Share2 className="size-4" />
             Compartilhar
           </Button>
+          {podeExcluir && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setConfirmarExclusao(true)}
+              disabled={excluir.isPending}
+            >
+              <Trash2 className="size-4" />
+              Excluir
+            </Button>
+          )}
         </div>
       </div>
+
+      <AlertDialog open={confirmarExclusao} onOpenChange={setConfirmarExclusao}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir relatório?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação excluirá permanentemente o relatório #{relatorio.numero} e seus
+              dados relacionados — análise, anexos, exportações e histórico. Essa
+              operação não poderá ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={excluir.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                // sem isto o AlertDialog fecha sozinho antes da mutação
+                // terminar, e o estado de "excluindo" nunca aparece
+                e.preventDefault();
+                confirmarExcluir();
+              }}
+              disabled={excluir.isPending}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              {excluir.isPending && <Loader2 className="size-4 animate-spin" />}
+              Excluir permanentemente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Tabs defaultValue="solicitacao">
         <TabsList className="h-auto w-full flex-wrap justify-start">
@@ -281,31 +354,24 @@ export function DetalheRelatorioClient({ id }: { id: string }) {
                     <CampoTexto
                       control={formSolicitacao.control}
                       name="numero_memorando"
-                      label="Número do memorando (opcional)"
+                      label="Número do memorando"
                     />
-                    <CampoComboboxCriavel
+                    <CampoSelect
                       control={formSolicitacao.control}
-                      name="tipo_solicitacao_id"
-                      label="Tipo de solicitação (opcional)"
-                      placeholder="Selecione ou crie"
+                      name="tipo_solicitacao"
+                      label="Tipo de solicitação"
+                      placeholder="Selecione"
                       opcoes={opcoesTipoSolicitacao}
-                      aoCriar={async (n) => (await crudTiposSolicitacao.criar({ nome: n })).id}
                     />
-                    <CampoComboboxCriavel
+                    <CampoTexto
                       control={formSolicitacao.control}
-                      name="solicitante_id"
-                      label="Solicitante (opcional)"
-                      placeholder="Selecione ou crie"
-                      opcoes={opcoesSolicitante}
-                      aoCriar={async (n) => (await crudSolicitantes.criar({ nome: n })).id}
+                      name="solicitante"
+                      label="Solicitante"
                     />
-                    <CampoComboboxCriavel
+                    <CampoTexto
                       control={formSolicitacao.control}
-                      name="departamento_id"
-                      label="Departamento (opcional)"
-                      placeholder="Selecione ou crie"
-                      opcoes={opcoesDepartamento}
-                      aoCriar={async (n) => (await crudDepartamentos.criar({ nome: n })).id}
+                      name="departamento"
+                      label="Departamento"
                     />
                     <CampoTexto
                       control={formSolicitacao.control}
@@ -313,24 +379,10 @@ export function DetalheRelatorioClient({ id }: { id: string }) {
                       label="Data da solicitação"
                       type="date"
                     />
-                    <CampoSelect
-                      control={formSolicitacao.control}
-                      name="prioridade"
-                      label="Prioridade"
-                      placeholder="Selecione"
-                      opcoes={OPCOES_PRIORIDADE}
-                    />
-                    <CampoSelect
-                      control={formSolicitacao.control}
-                      name="operador_id"
-                      label="Operador responsável (opcional)"
-                      placeholder="Selecione"
-                      opcoes={opcoesOperador}
-                    />
                     <CampoTexto
                       control={formSolicitacao.control}
                       name="data_limite"
-                      label="Data limite (opcional)"
+                      label="Data limite"
                       type="date"
                     />
                     <CampoSelect
@@ -340,14 +392,9 @@ export function DetalheRelatorioClient({ id }: { id: string }) {
                       placeholder="Selecione"
                       opcoes={OPCOES_STATUS}
                     />
-                    <CampoTexto
-                      control={formSolicitacao.control}
-                      name="classificacao"
-                      label="Classificação (opcional)"
-                    />
                     <div className="sm:col-span-2">
-                      <Button type="submit" disabled={atualizar.isPending}>
-                        {atualizar.isPending && <Loader2 className="size-4 animate-spin" />}
+                      <Button type="submit" disabled={salvando}>
+                        {salvando && <Loader2 className="size-4 animate-spin" />}
                         Salvar
                       </Button>
                     </div>
@@ -397,29 +444,18 @@ export function DetalheRelatorioClient({ id }: { id: string }) {
                     onSubmit={formFato.handleSubmit(onSubmitFato)}
                     className="grid gap-4 sm:grid-cols-2"
                   >
-                    <CampoTexto control={formFato.control} name="data_fato" label="Data do fato (opcional)" type="date" />
+                    <CampoTexto control={formFato.control} name="data_fato" label="Data do fato" type="date" />
                     <CampoTexto
                       control={formFato.control}
                       name="hora_aproximada"
-                      label="Hora aproximada (opcional)"
+                      label="Hora aproximada"
                       type="time"
                     />
-                    <CampoComboboxCriavel
+                    <CampoTexto control={formFato.control} name="local" label="Local" />
+                    <CampoTexto
                       control={formFato.control}
-                      name="local_id"
-                      label="Local (opcional)"
-                      placeholder="Selecione ou crie"
-                      opcoes={opcoesLocal}
-                      aoCriar={aoCriarLocal}
-                      rotuloCriar={(t) => `Criar local "${t}"`}
-                    />
-                    <CampoComboboxCriavel
-                      control={formFato.control}
-                      name="tipo_ocorrencia_id"
-                      label="Tipo da ocorrência (opcional)"
-                      placeholder="Selecione ou crie"
-                      opcoes={opcoesTipoOcorrencia}
-                      aoCriar={async (n) => (await crudTiposOcorrenciaRelatorio.criar({ nome: n })).id}
+                      name="tipo_ocorrencia"
+                      label="Tipo da ocorrência"
                     />
                     <div className="sm:col-span-2">
                       <CampoTextarea
@@ -432,19 +468,12 @@ export function DetalheRelatorioClient({ id }: { id: string }) {
                       <CampoTextarea
                         control={formFato.control}
                         name="pessoas_envolvidas"
-                        label="Pessoas envolvidas (opcional)"
+                        label="Pessoas envolvidas"
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <CampoTextarea
-                        control={formFato.control}
-                        name="observacoes_fato"
-                        label="Observações (opcional)"
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <Button type="submit" disabled={atualizar.isPending}>
-                        {atualizar.isPending && <Loader2 className="size-4 animate-spin" />}
+                      <Button type="submit" disabled={salvando}>
+                        {salvando && <Loader2 className="size-4 animate-spin" />}
                         Salvar
                       </Button>
                     </div>
@@ -486,7 +515,7 @@ export function DetalheRelatorioClient({ id }: { id: string }) {
                 PDF (só a análise)
               </Button>
             </div>
-            <SecaoExportacoes relatorioId={id} editavel={editavel} />
+            <SecaoExportacoes relatorioId={id} editavel={editavel} podeExcluir={podeExcluir} />
           </div>
         </TabsContent>
 
@@ -495,7 +524,7 @@ export function DetalheRelatorioClient({ id }: { id: string }) {
         </TabsContent>
 
         <TabsContent value="anexos">
-          <SecaoAnexos relatorioId={id} editavel={editavel} />
+          <SecaoAnexos relatorioId={id} editavel={editavel} podeExcluir={podeExcluir} />
         </TabsContent>
 
         <TabsContent value="historico">
@@ -535,7 +564,8 @@ export function DetalheRelatorioClient({ id }: { id: string }) {
                 <p key={e.id}>
                   {fmtData(e.data)} {e.horario_inicial.slice(0, 5)}
                   {e.horario_final ? `–${e.horario_final.slice(0, 5)}` : ""}
-                  {e.camera ? ` · Câmera ${e.camera.numero}` : ""} — {e.descricao}
+                  {e.camera ? ` · Câmera ${e.camera.numero}` : ""}
+                  {localDoEvento(e) ? ` · ${localDoEvento(e)}` : ""} — {e.descricao}
                 </p>
               ))}
             </section>
@@ -555,7 +585,8 @@ export function DetalheRelatorioClient({ id }: { id: string }) {
               <p key={e.id}>
                 {fmtData(e.data)} {e.horario_inicial.slice(0, 5)}
                 {e.horario_final ? `–${e.horario_final.slice(0, 5)}` : ""}
-                {e.camera ? ` · Câmera ${e.camera.numero}` : ""} — {e.descricao}
+                {e.camera ? ` · Câmera ${e.camera.numero}` : ""}
+                {localDoEvento(e) ? ` · ${localDoEvento(e)}` : ""} — {e.descricao}
               </p>
             ))}
           </div>

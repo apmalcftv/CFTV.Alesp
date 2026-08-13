@@ -10,16 +10,34 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { PapelUsuario } from "@/types/domain";
-import { PAPEIS_COM_ACESSO_RELATORIOS_OCORRENCIA } from "@/lib/autorizacao";
+
+/** Nível 1 da navegação: os domínios de negócio do sistema. "Câmeras"
+    (manutenção do CFTV) e "Relatórios de Ocorrências" (investigação da
+    CMAL) são independentes — não há nenhuma FK entre `ocorrencias` e
+    `relatorios_ocorrencia`. "Sistema" é transversal aos dois: os
+    catálogos de prédios/locais/câmeras alimentam ambos, por isso ele não
+    pertence a nenhum dos dois módulos de negócio. */
+export type ModuloSistema =
+  | "Operação e Análise de Câmeras"
+  | "CMAL"
+  | "Sistema";
 
 export interface NavItem {
   titulo: string;
   href: string;
   icone: LucideIcon;
-  /** Papéis que veem este item — todos os papéis aprovados, se omitido */
+  /** Papéis que veem este item — todos os papéis aprovados, se omitido.
+      Modelo antigo, ainda usado pelos itens do módulo Câmeras. */
   papeis?: readonly PapelUsuario[];
-  /** Rótulo do grupo visual na sidebar (apenas apresentação) */
-  grupo: "Operação" | "Análise" | "Sistema";
+  /** Recurso da matriz configurável (Cadastros › Permissões). Quando
+      presente, o item aparece se o usuário tiver `visualizar` nele, e
+      `papeis` é ignorado. Hoje só o módulo CMAL usa. Os dois modelos
+      convivem de propósito até o módulo Câmeras ser migrado. */
+  recurso?: string;
+  /** Nível 1 — módulo de negócio (apenas apresentação) */
+  modulo: ModuloSistema;
+  /** Nível 2 — subgrupo dentro do módulo (apenas apresentação) */
+  grupo: string;
 }
 
 const TODOS_MENOS_EMPRESA: PapelUsuario[] = [
@@ -29,58 +47,106 @@ const TODOS_MENOS_EMPRESA: PapelUsuario[] = [
   "gestor",
 ];
 
+// A ordem deste array define a ordem do menu. `SidebarNav` agrupa por
+// módulo e, dentro dele, por grupo — mantenha itens do mesmo par
+// (módulo, grupo) contíguos.
 export const NAV_ITEMS: NavItem[] = [
+  // ---------- Operação e Análise de Câmeras ----------
   {
-    titulo: "Dashboard",
+    titulo: "Dashboard Câmeras",
     href: "/dashboard",
     icone: LayoutDashboard,
     papeis: TODOS_MENOS_EMPRESA,
-    grupo: "Operação",
+    modulo: "Operação e Análise de Câmeras",
+    grupo: "Operação de Câmeras",
   },
   {
     titulo: "Câmeras",
     href: "/cameras",
     icone: Cctv,
     papeis: ["administrador", "operador_cftc", "fiscal_alesp"],
-    grupo: "Operação",
+    modulo: "Operação e Análise de Câmeras",
+    grupo: "Operação de Câmeras",
   },
-  { titulo: "Ocorrências", href: "/ocorrencias", icone: ClipboardList, grupo: "Operação" },
   {
-    titulo: "Relatórios de Ocorrências",
-    href: "/relatorios-ocorrencias",
-    icone: FileSearch,
-    // Papéis próprios do módulo (nunca Fiscal ALESP nem Empresa Contratada
-    // aqui) — fonte única em @/lib/autorizacao, não confundir com
-    // TODOS_MENOS_EMPRESA (que inclui fiscal_alesp e serve os outros itens).
-    papeis: PAPEIS_COM_ACESSO_RELATORIOS_OCORRENCIA,
-    grupo: "Operação",
+    // Único item sem `papeis`: a empresa contratada só enxerga esta tela,
+    // e a RLS já limita a leitura às OS da própria empresa.
+    titulo: "OS/Câmeras",
+    href: "/ocorrencias",
+    icone: ClipboardList,
+    modulo: "Operação e Análise de Câmeras",
+    grupo: "Operação de Câmeras",
   },
   {
     titulo: "Executivo",
     href: "/executivo",
     icone: TrendingUp,
     papeis: TODOS_MENOS_EMPRESA,
-    grupo: "Análise",
+    modulo: "Operação e Análise de Câmeras",
+    grupo: "Análise de Câmeras",
   },
   {
-    titulo: "Relatórios",
+    titulo: "Relatórios de Câmeras",
     href: "/relatorios",
     icone: FileText,
     papeis: TODOS_MENOS_EMPRESA,
-    grupo: "Análise",
+    modulo: "Operação e Análise de Câmeras",
+    grupo: "Análise de Câmeras",
   },
   {
-    titulo: "Notificações",
+    titulo: "Notificações de Câmeras",
     href: "/notificacoes",
     icone: Bell,
     papeis: ["administrador", "operador_cftc", "fiscal_alesp"],
-    grupo: "Análise",
+    modulo: "Operação e Análise de Câmeras",
+    grupo: "Análise de Câmeras",
   },
+
+  // ---------- CMAL (Central de Monitoramento) ----------
+  // Os itens deste módulo não usam `papeis`: quem decide é a matriz
+  // configurável em Cadastros › Permissões, pelo campo `recurso`. Cada
+  // rota tem guarda própria no servidor e a RLS das tabelas consulta a
+  // mesma matriz — esconder o item aqui é só a camada visual.
+  {
+    titulo: "Dashboard",
+    href: "/relatorios-ocorrencias/painel",
+    icone: LayoutDashboard,
+    recurso: "cmal_painel",
+    modulo: "CMAL",
+    grupo: "Operação CMAL",
+  },
+  {
+    titulo: "Relatórios de Ocorrências",
+    href: "/relatorios-ocorrencias",
+    icone: FileSearch,
+    recurso: "cmal_relatorios",
+    modulo: "CMAL",
+    grupo: "Operação CMAL",
+  },
+  {
+    titulo: "Executivo",
+    href: "/relatorios-ocorrencias/executivo",
+    icone: TrendingUp,
+    recurso: "cmal_executivo",
+    modulo: "CMAL",
+    grupo: "Análise de Ocorrências",
+  },
+  {
+    titulo: "Notificações",
+    href: "/relatorios-ocorrencias/notificacoes",
+    icone: Bell,
+    recurso: "cmal_notificacoes",
+    modulo: "CMAL",
+    grupo: "Análise de Ocorrências",
+  },
+
+  // ---------- Sistema ----------
   {
     titulo: "Cadastros",
     href: "/cadastros",
     icone: FolderCog,
     papeis: ["administrador", "operador_cftc"],
-    grupo: "Sistema",
+    modulo: "Sistema",
+    grupo: "Configuração",
   },
 ];

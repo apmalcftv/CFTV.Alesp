@@ -1,33 +1,26 @@
+// Hooks React Query dos catálogos do módulo CMAL.
+//
+// Tipo de solicitação e Tipo de ocorrência não têm hook: desde que os
+// formulários de criação/edição passaram a aceitar texto livre, ninguém
+// mais lista esses catálogos na tela — a resolução do nome para id
+// acontece direto pelo serviço, em `services/catalogo-por-nome.ts`.
+
 import {
   crudDepartamentos,
   crudMarcadores,
   crudSolicitantes,
-  crudTiposOcorrenciaRelatorio,
-  crudTiposSolicitacao,
 } from "@/services/cadastros-relatorios-ocorrencia";
 import { criarHooksCrud } from "@/hooks/use-crud-simples";
 import type {
   Departamento,
   Marcador,
   Solicitante,
-  TipoOcorrenciaRelatorio,
-  TipoSolicitacao,
 } from "@/types/relatorios-ocorrencia";
 
 export const hooksDepartamentos = criarHooksCrud<Departamento>(
   "departamentos",
   crudDepartamentos,
   "Departamento"
-);
-export const hooksTiposSolicitacao = criarHooksCrud<TipoSolicitacao>(
-  "tipos_solicitacao",
-  crudTiposSolicitacao,
-  "Tipo de solicitação"
-);
-export const hooksTiposOcorrenciaRelatorio = criarHooksCrud<TipoOcorrenciaRelatorio>(
-  "tipos_ocorrencia",
-  crudTiposOcorrenciaRelatorio,
-  "Tipo de ocorrência"
 );
 export const hooksSolicitantes = criarHooksCrud<Solicitante>(
   "solicitantes",

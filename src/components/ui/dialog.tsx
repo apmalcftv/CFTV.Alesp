@@ -51,12 +51,17 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  container,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  /** Onde o portal é montado. Padrão: document.body. Só precisa ser
+      informado quando o diálogo abre dentro de um elemento em fullscreen
+      — nesse caso o body fica fora da tela e o diálogo não apareceria. */
+  container?: React.ComponentProps<typeof DialogPrimitive.Portal>["container"]
 }) {
   return (
-    <DialogPortal>
+    <DialogPortal container={container}>
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"

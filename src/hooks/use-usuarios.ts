@@ -13,6 +13,18 @@ export function usePerfis() {
   });
 }
 
+/** Usuários selecionáveis como operador de uma análise (Administrador e
+    Operador CFTC aprovados). Query key própria para que a lista filtrada
+    não se misture com a de `usePerfis`, que continua servindo a tela de
+    gestão de usuários. */
+export function useOperadoresAnalise() {
+  return useQuery({
+    queryKey: ["usuarios", "operadores-analise"],
+    queryFn: servico.listarOperadoresAnalise,
+    staleTime: 30 * 1000,
+  });
+}
+
 function useAcaoUsuario<TVariaveis>(
   mutationFn: (v: TVariaveis) => Promise<void>,
   mensagemSucesso: string,

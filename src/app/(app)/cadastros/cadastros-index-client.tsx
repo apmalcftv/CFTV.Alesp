@@ -10,6 +10,7 @@ import {
   MapPin,
   Palette,
   ShieldAlert,
+  ShieldCheck,
   ShieldOff,
   Users,
   Wrench,
@@ -39,6 +40,7 @@ const ITENS_OPERACIONAIS: ItemCadastro[] = [
 
 const ITENS_ADMIN: ItemCadastro[] = [
   { href: "/cadastros/usuarios", titulo: "Usuários", descricao: "Aprovação e papéis de acesso", icone: Users },
+  { href: "/cadastros/permissoes", titulo: "Permissões", descricao: "O que cada perfil pode fazer", icone: ShieldCheck },
   { href: "/cadastros/marca", titulo: "Marca e identidade", descricao: "Nome, textos e cores", icone: Palette },
 ];
 

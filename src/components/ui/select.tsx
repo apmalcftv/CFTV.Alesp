@@ -62,10 +62,16 @@ function SelectContent({
   children,
   position = "item-aligned",
   align = "center",
+  container,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Content>) {
+}: React.ComponentProps<typeof SelectPrimitive.Content> & {
+  /** Onde o portal é montado. Padrão: document.body. Só precisa ser
+      informado quando o select abre dentro de um elemento em fullscreen
+      — nesse caso o body fica fora da tela e a lista não apareceria. */
+  container?: React.ComponentProps<typeof SelectPrimitive.Portal>["container"]
+}) {
   return (
-    <SelectPrimitive.Portal>
+    <SelectPrimitive.Portal container={container}>
       <SelectPrimitive.Content
         data-slot="select-content"
         data-align-trigger={position === "item-aligned"}

@@ -75,16 +75,30 @@ export async function gerarBlobResumoExecutivoExcel(
   });
 }
 
+/** Local do evento como ele aparece na coluna Local do grid: texto livre
+    primeiro, nome vindo do join com `locais` como reserva para os eventos
+    antigos. Mesma regra de `eventoParaLinha`. Só lê — exportar nunca cria
+    nem altera cadastro de local. */
+export function localDoEvento(e: EventoTimelineComJoins): string {
+  return e.local_texto ?? e.local?.nome ?? "";
+}
+
+/** Colunas na mesma ordem do grid da aba Análise, para a planilha ser lida
+    como a tela. `Nº` é a posição do evento na ordem cronológica —
+    `listarTimeline` já devolve ordenado por data e horário inicial, que é
+    a mesma numeração que o grid mostra. */
 export function linhasTimeline(eventos: EventoTimelineComJoins[]) {
-  return eventos.map((e) => ({
-    Data: fmtDataIso(e.data),
+  return eventos.map((e, i) => ({
+    "Nº": i + 1,
     "Horário inicial": e.horario_inicial,
     "Horário final": e.horario_final ?? "",
+    Data: fmtDataIso(e.data),
     Câmera: e.camera ? `Câmera ${e.camera.numero}` : "",
-    Local: e.local?.nome ?? "",
-    Descrição: e.descricao,
+    Local: localDoEvento(e),
+    "Descrição do evento": e.descricao,
     Operador: e.operador?.nome ?? "",
     Marcador: e.marcador?.nome ?? "",
+    "Comentário interno": e.comentario_interno ?? "",
   }));
 }
 

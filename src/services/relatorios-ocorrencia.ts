@@ -1,24 +1,25 @@
 import { createClient } from "@/lib/supabase/client";
-import type { Prioridade } from "@/types/domain";
 import type { RelatorioOcorrencia } from "@/types/relatorios-ocorrencia";
 
+/** Campos aceitos na criação. `prioridade`, `operador_id` e `classificacao`
+    saíram do formulário de abertura (viram edição na tela de detalhe) e por
+    isso não entram aqui — as colunas continuam existindo e o banco aplica
+    o próprio padrão (`prioridade` = 'media', as outras duas nulas).
+    `observacoes_fato` saiu das telas por inteiro; a coluna segue no banco
+    (nullable) guardando o que já foi gravado. */
 export interface NovoRelatorioOcorrencia {
   numero_memorando: string | null;
   tipo_solicitacao_id: string | null;
   solicitante_id: string | null;
   departamento_id: string | null;
   data_solicitacao: string;
-  prioridade: Prioridade;
-  operador_id: string | null;
   data_limite: string | null;
-  classificacao: string | null;
   data_fato: string | null;
   hora_aproximada: string | null;
   local_id: string | null;
   descricao_fato: string;
   tipo_ocorrencia_id: string | null;
   pessoas_envolvidas: string | null;
-  observacoes_fato: string | null;
 }
 
 export interface RelatorioOcorrenciaDetalhe extends RelatorioOcorrencia {
@@ -66,6 +67,42 @@ export async function buscarRelatorio(id: string): Promise<RelatorioOcorrenciaDe
     .single();
   if (error) throw error;
   return data as unknown as RelatorioOcorrenciaDetalhe;
+}
+
+/** Exclusão definitiva, exclusiva do Administrador (policy
+    `t_exclusao_admin`). Timeline, anexos, histórico e exportações somem
+    junto por ON DELETE CASCADE das FKs — um único DELETE, transacional,
+    sem sequência de deletes no cliente.
+
+    O Storage é o único ponto que a cascata não alcança: bucket não tem
+    FK. Por isso os arquivos do relatório são removidos antes, na mesma
+    ordem que `removerAnexoRelatorio` já usa (arquivo primeiro, registro
+    depois) — se o Storage falhar, nada é apagado e o erro sobe.
+
+    Catálogos compartilhados (locais, câmeras, perfis, departamentos,
+    solicitantes, marcadores, tipos) não são tocados: o relatório aponta
+    para eles, não o contrário. */
+export async function excluirRelatorio(id: string): Promise<void> {
+  const supabase = createClient();
+
+  const { data: anexos, error: erroAnexos } = await supabase
+    .from("relatorio_anexos")
+    .select("storage_path")
+    .eq("relatorio_id", id);
+  if (erroAnexos) throw erroAnexos;
+
+  const caminhos = (anexos ?? [])
+    .map((a) => (a as { storage_path: string }).storage_path)
+    .filter(Boolean);
+  if (caminhos.length > 0) {
+    const { error: erroStorage } = await supabase.storage
+      .from("anexos-relatorios")
+      .remove(caminhos);
+    if (erroStorage) throw erroStorage;
+  }
+
+  const { error } = await supabase.from("relatorios_ocorrencia").delete().eq("id", id);
+  if (error) throw error;
 }
 
 export async function criarRelatorio(

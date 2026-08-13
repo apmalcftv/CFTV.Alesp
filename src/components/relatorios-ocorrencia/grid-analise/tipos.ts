@@ -1,4 +1,5 @@
 import type { EventoTimelineComJoins, NovoEventoTimeline } from "@/services/relatorio-timeline";
+import type { EventoAnaliseHistorico } from "@/services/relatorio-historico";
 
 /** Linha de trabalho do Grid Investigativo — vive só em memória até
     "Salvar Análise". IDs reais (uuid do banco) para linhas já existentes;
@@ -11,6 +12,9 @@ export interface LinhaGrid {
   horarioFinal: string; // HH:mm ou ""
   cameraId: string | null;
   cameraTexto: string;
+  /** Vínculo antigo com o catálogo `locais`. A coluna Local virou texto
+      livre, então nada novo grava aqui — o valor só é carregado e
+      devolvido intacto para não mexer no que já está registrado. */
   localId: string | null;
   localTexto: string;
   descricao: string;
@@ -76,7 +80,9 @@ export function eventoParaLinha(e: EventoTimelineComJoins): LinhaGrid {
     cameraId: e.camera_id,
     cameraTexto: e.camera ? `Câmera ${e.camera.numero}` : "",
     localId: e.local_id,
-    localTexto: e.local?.nome ?? "",
+    // Texto livre primeiro; evento antigo não tem `local_texto` e cai no
+    // nome vindo do join com `locais`, exatamente como aparecia antes.
+    localTexto: e.local_texto ?? e.local?.nome ?? "",
     descricao: e.descricao,
     operadorId: e.operador_id,
     operadorTexto: e.operador?.nome ?? "",
@@ -100,12 +106,69 @@ export function linhaParaEvento(
     horario_inicial: linha.horarioInicial || "00:00",
     horario_final: linha.horarioFinal || null,
     camera_id: linha.cameraId,
+    // Devolvido como veio: não se cria nem se altera vínculo de catálogo
+    // a partir do grid — só o texto abaixo é editável.
     local_id: linha.localId,
+    local_texto: linha.localTexto || null,
     descricao: linha.descricao,
     operador_id: linha.operadorId,
     marcador_id: linha.marcadorId,
     comentario_interno: linha.comentarioInterno || null,
   };
+}
+
+/** Colunas da análise que entram na trilha de auditoria, na ordem em que
+    aparecem no grid. A chave é o que vai para `relatorio_historico.campo`;
+    o rótulo de tela vive em `secao-historico.tsx`. */
+const CAMPOS_AUDITADOS: (keyof LinhaGrid)[] = [
+  "data",
+  "horarioInicial",
+  "horarioFinal",
+  "cameraTexto",
+  "localTexto",
+  "descricao",
+  "operadorTexto",
+  "marcadorTexto",
+  "comentarioInterno",
+];
+
+/** O que mudou entre o que foi carregado e o que está sendo salvo, para
+    virar histórico. Compara por `id`: linha nova tem id temporário
+    ("novo:"), então nunca casa com nenhuma carregada. Só devolve o nome do
+    campo — nunca o valor, antigo ou novo. */
+export function diferencaParaHistorico(
+  antes: LinhaGrid[],
+  depois: LinhaGrid[]
+): EventoAnaliseHistorico[] {
+  const porIdAntes = new Map(antes.map((l) => [l.id, l]));
+  const idsDepois = new Set(depois.map((l) => l.id));
+  const eventos: EventoAnaliseHistorico[] = [];
+
+  for (const linha of depois) {
+    const original = porIdAntes.get(linha.id);
+    if (!original) {
+      // Linha em branco que o grid mantém no fim e o operador nunca
+      // preencheu não é "linha adicionada" — `linhaParaEvento` também a
+      // descarta, então ela nem chega ao banco.
+      if (linha.horarioInicial || linha.descricao.trim()) {
+        eventos.push({ tipo: "adicao_linha_analise" });
+      }
+      continue;
+    }
+    for (const campo of CAMPOS_AUDITADOS) {
+      if (original[campo] !== linha[campo]) {
+        eventos.push({ tipo: "edicao_analise", campo });
+      }
+    }
+  }
+
+  for (const linha of antes) {
+    if (!idsDepois.has(linha.id)) {
+      eventos.push({ tipo: "exclusao_linha_analise" });
+    }
+  }
+
+  return eventos;
 }
 
 export function ordenarPorHorario(linhas: LinhaGrid[]): LinhaGrid[] {

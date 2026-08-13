@@ -99,7 +99,7 @@ export function RelatoriosClient() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-semibold tracking-tight">
-            Relatórios
+            Relatórios de Câmeras
           </h1>
           <p className="text-sm text-muted-foreground">
             Exportação de ocorrências por período, prédio, empresa e defeito

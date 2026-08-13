@@ -60,9 +60,15 @@ const valoresPadrao: FormExportacao = {
 export function SecaoExportacoes({
   relatorioId,
   editavel,
+  podeExcluir,
 }: {
   relatorioId: string;
+  /** Permissão `editar`: registrar uma exportação nova. Não dá direito de
+      apagar registro existente. */
   editavel: boolean;
+  /** Permissão `excluir`, independente de `editar` na matriz. Espelha a
+      policy `t_exclusao` de `relatorio_exportacoes`. */
+  podeExcluir: boolean;
 }) {
   const { data: exportacoes, isPending } = useExportacoesRelatorio(relatorioId);
   const criar = useCriarExportacao(relatorioId);
@@ -185,7 +191,9 @@ export function SecaoExportacoes({
                   <TableHead>Câmeras</TableHead>
                   <TableHead>Formato</TableHead>
                   <TableHead>Destino</TableHead>
-                  {editavel && <TableHead aria-label="Ações" />}
+                  {/* A coluna de ações só tem o botão de excluir — segue
+                      a permissão dele, não a de editar. */}
+                  {podeExcluir && <TableHead aria-label="Ações" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -198,7 +206,7 @@ export function SecaoExportacoes({
                     <TableCell>{ex.cameras_exportadas ?? "—"}</TableCell>
                     <TableCell>{ex.formato ?? "—"}</TableCell>
                     <TableCell>{ex.destino ?? "—"}</TableCell>
-                    {editavel && (
+                    {podeExcluir && (
                       <TableCell className="w-10">
                         <Button
                           variant="ghost"

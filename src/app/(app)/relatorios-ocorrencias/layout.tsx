@@ -1,31 +1,31 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { podeAcessarRelatoriosOcorrencia } from "@/lib/autorizacao";
-import type { PapelUsuario } from "@/types/domain";
+import { temAlgumaPermissao } from "@/lib/permissoes-servidor";
 
-/** Guarda de rota do módulo "Relatórios de Ocorrências": Fiscal ALESP e
-    Empresa Contratada não têm acesso — nem pelo menu (já escondido em
-    navigation.ts), nem digitando a URL direto. O layout do grupo `(app)`
-    já garante usuário autenticado e aprovado antes deste ponto; aqui só
-    falta checar o papel específico deste módulo. A trava real de dados
-    continua sendo a RLS — este redirect é só para não expor a tela. */
+/** Recursos do módulo CMAL. Quem não enxerga nenhum deles não tem o que
+    fazer aqui dentro. */
+export const RECURSOS_CMAL = [
+  "cmal_painel",
+  "cmal_relatorios",
+  "cmal_executivo",
+  "cmal_notificacoes",
+] as const;
+
+/** Guarda do módulo "Relatórios de Ocorrências".
+ *
+ * Deixou de comparar papéis: hoje consulta a matriz configurável, pela
+ * mesma função SQL que as policies usam. Cada sub-rota tem a sua própria
+ * checagem do recurso específico — esta aqui só barra quem não enxerga
+ * absolutamente nada do módulo.
+ *
+ * O layout do grupo `(app)` já garantiu usuário autenticado e aprovado.
+ * A trava real dos dados continua sendo a RLS; este redirect existe para
+ * não abrir uma tela que viria vazia. */
 export default async function RelatoriosOcorrenciasLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: perfil } = await supabase
-    .from("perfis")
-    .select("papel")
-    .eq("id", user!.id)
-    .single<{ papel: PapelUsuario }>();
-
-  if (!perfil || !podeAcessarRelatoriosOcorrencia(perfil.papel)) {
+  if (!(await temAlgumaPermissao(RECURSOS_CMAL, "visualizar"))) {
     redirect("/dashboard");
   }
 

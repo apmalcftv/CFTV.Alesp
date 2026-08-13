@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSalvarTimelineCompleta, useTimelineRelatorio } from "@/hooks/use-relatorio-timeline";
 import type { NovoEventoTimeline } from "@/services/relatorio-timeline";
+import { registrarEventosAnalise } from "@/services/relatorio-historico";
 import {
+  diferencaParaHistorico,
   eventoParaLinha,
   linhaParaEvento,
   linhaVazia,
@@ -31,7 +34,11 @@ export function useTimelineGrid(
   const salvar = useSalvarTimelineCompleta(relatorioId);
   const chaveRascunho = `analise-rascunho:${relatorioId}`;
 
+  const queryClient = useQueryClient();
   const [linhas, setLinhasState] = useState<LinhaGrid[]>([]);
+  // Retrato do que veio do banco, para o histórico saber o que de fato
+  // mudou quando o operador salvar. Renovado a cada salvamento.
+  const [linhasOriginais, setLinhasOriginais] = useState<LinhaGrid[]>([]);
   const [carregado, setCarregado] = useState(false);
   const [sujo, setSujo] = useState(false);
   const [rascunho, setRascunho] = useState<Rascunho | null>(null);
@@ -48,6 +55,7 @@ export function useTimelineGrid(
     setLinhasState(
       carregadas.length ? carregadas : [linhaVazia(dataPadrao, operadorId, operadorTexto)]
     );
+    setLinhasOriginais(carregadas);
     setCarregado(true);
     try {
       const bruto = localStorage.getItem(chaveRascunho);
@@ -132,9 +140,21 @@ export function useTimelineGrid(
     const payload = ordenadas
       .map((l) => linhaParaEvento(relatorioId, l))
       .filter((e): e is NovoEventoTimeline => e !== null);
+    const eventosHistorico = diferencaParaHistorico(linhasOriginais, ordenadas);
     await salvar.mutateAsync(payload);
+    // Depois de gravar: a análise salva é o que importa, e uma falha ao
+    // registrar a trilha não pode desfazer nem bloquear o salvamento.
+    try {
+      await registrarEventosAnalise(relatorioId, eventosHistorico);
+      queryClient.invalidateQueries({
+        queryKey: ["relatorios_ocorrencia", relatorioId, "historico"],
+      });
+    } catch {
+      // silencioso de propósito: o operador já viu "análise salva"
+    }
     localStorage.removeItem(chaveRascunho);
     setLinhasState(ordenadas);
+    setLinhasOriginais(ordenadas);
     setSujo(false);
     setHistorico([]);
     setFuturo([]);

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { PAPEIS_GESTAO_RELATORIOS_OCORRENCIA } from "@/lib/autorizacao";
 import type { PapelUsuario, PerfilUsuario } from "@/types/domain";
 
 const COLUNAS =
@@ -10,6 +11,32 @@ export async function listarPerfis(): Promise<PerfilUsuario[]> {
     .from("perfis")
     .select(COLUNAS)
     .order("criado_em", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as PerfilUsuario[];
+}
+
+/** Fonte única dos usuários selecionáveis como operador de uma análise —
+    coluna "Operador" do grid da aba Análise e modal "Salvar análise".
+    Os dois pontos consomem esta mesma consulta para nunca divergirem.
+
+    O filtro é por **papel**, nunca por empresa, e vem de
+    `PAPEIS_GESTAO_RELATORIOS_OCORRENCIA` (a mesma lista que autoriza
+    escrita no módulo) — então um papel criado no futuro fica de fora até
+    ser adicionado lá de propósito. `status = 'aprovado'` é o mesmo
+    critério que as duas telas já aplicavam antes: conta bloqueada,
+    rejeitada, excluída ou ainda pendente não entra na lista.
+
+    Filtrado no banco, não na tela. Não altera nada gravado: análises
+    antigas continuam exibindo o operador registrado nelas, que vem do
+    join do próprio evento. */
+export async function listarOperadoresAnalise(): Promise<PerfilUsuario[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("perfis")
+    .select(COLUNAS)
+    .in("papel", PAPEIS_GESTAO_RELATORIOS_OCORRENCIA as PapelUsuario[])
+    .eq("status", "aprovado")
+    .order("nome");
   if (error) throw error;
   return (data ?? []) as unknown as PerfilUsuario[];
 }

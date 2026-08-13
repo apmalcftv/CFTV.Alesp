@@ -182,7 +182,7 @@ export function DashboardClient() {
       <div className="flex flex-col gap-4">
         <div>
           <h1 className="font-heading text-2xl font-semibold tracking-tight">
-            Dashboard
+            Dashboard Câmeras
           </h1>
           <p className="text-sm text-muted-foreground">
             Situação do parque de câmeras em tempo real

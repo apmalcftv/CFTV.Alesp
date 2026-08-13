@@ -7,7 +7,12 @@ export interface NovoEventoTimeline {
   horario_inicial: string;
   horario_final: string | null;
   camera_id: string | null;
+  /** Só chega preenchido em evento antigo, de quando a coluna Local era
+      um vínculo com o catálogo. O grid não escolhe mais local do
+      catálogo — ver `local_texto`. */
   local_id: string | null;
+  /** Local em texto livre, como o operador digitou. */
+  local_texto: string | null;
   descricao: string;
   operador_id: string | null;
   marcador_id: string | null;

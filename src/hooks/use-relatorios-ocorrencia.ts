@@ -38,6 +38,23 @@ export function useCriarRelatorioOcorrencia() {
   });
 }
 
+/** Exclusão definitiva (administrador). Remove o relatório do cache em
+    vez de só invalidar: a tela de detalhe é desmontada logo em seguida e
+    um refetch do id apagado só produziria erro. */
+export function useExcluirRelatorioOcorrencia() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: servico.excluirRelatorio,
+    onSuccess: (_dado, id) => {
+      queryClient.removeQueries({ queryKey: ["relatorios_ocorrencia", id] });
+      queryClient.invalidateQueries({ queryKey: ["relatorios_ocorrencia"] });
+      toast.success("Relatório excluído");
+    },
+    onError: (e: Error) =>
+      toast.error("Não foi possível excluir o relatório", { description: e.message }),
+  });
+}
+
 export function useAtualizarRelatorioOcorrencia(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
