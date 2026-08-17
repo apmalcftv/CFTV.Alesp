@@ -286,13 +286,19 @@ export interface TenantAtual {
 }
 
 /** Marca neutra do produto — usada quando não há tenant resolvido
-    (ex.: login sem ?t=slug). Configurável via NEXT_PUBLIC_PRODUCT_NAME. */
+    (ex.: login sem ?t=slug, que é como o PWA abre — start_url não carrega
+    slug nenhum). Configurável via NEXT_PUBLIC_PRODUCT_NAME.
+    `logo_url` aponta para o mesmo arquivo usado nos ícones do PWA
+    (public/icons/icon-512.png) — caminho relativo, resolvido pelo
+    navegador contra a própria origem do app, sem precisar do domínio
+    fixo no código. */
 export const BRANDING_PRODUTO: Required<
-  Pick<Branding, "nome_sistema" | "subtitulo" | "descricao">
+  Pick<Branding, "nome_sistema" | "subtitulo" | "descricao" | "logo_url">
 > = {
   nome_sistema: process.env.NEXT_PUBLIC_PRODUCT_NAME ?? "Gestão de CFTV",
   subtitulo: "Central de monitoramento",
   descricao: "Gerenciamento do circuito de câmeras",
+  logo_url: "/icons/icon-512.png",
 };
 
 export interface Perfil {

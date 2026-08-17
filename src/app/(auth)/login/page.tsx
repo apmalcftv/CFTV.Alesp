@@ -4,7 +4,9 @@ import { getBrandingPublico } from "@/lib/branding-publico";
 import { BRANDING_PRODUTO } from "@/types/domain";
 import { LoginForm } from "./login-form";
 
-export const metadata: Metadata = { title: "Entrar" };
+// title.absolute ignora o template "%s · Gestão de CFTV" do layout raiz —
+// aqui a marca é sempre CFTV Alesp, independente do nome neutro do produto.
+export const metadata: Metadata = { title: { absolute: "Entrar - CFTV Alesp" } };
 
 export default async function LoginPage({
   searchParams,
@@ -13,10 +15,11 @@ export default async function LoginPage({
 }) {
   const { t } = await searchParams;
   const publico = await getBrandingPublico(t);
-  const nome =
-    publico?.branding?.nome_sistema ?? publico?.nome ?? BRANDING_PRODUTO.nome_sistema;
-  const descricao = publico?.branding?.descricao ?? BRANDING_PRODUTO.descricao;
   const corPrimaria = publico?.branding?.cores?.primary;
+  // Sem ?t=slug (é como o PWA abre — start_url não carrega slug nenhum),
+  // publico é null e cai na logo padrão do produto — mesmo padrão que já
+  // valia para nome/descrição, só que agora também para o logo.
+  const logoUrl = publico?.branding?.logo_url ?? BRANDING_PRODUTO.logo_url;
 
   return (
     <main
@@ -36,25 +39,17 @@ export default async function LoginPage({
         className="textura-pontos pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_800px_500px_at_50%_0%,black,transparent)]"
       />
       <div className="relative w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center gap-3 text-sidebar-accent-foreground">
-          <div className="flex size-14 items-center justify-center overflow-hidden rounded-2xl bg-sidebar-accent">
-            {publico?.branding?.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element -- logo externo por tenant
-              <img
-                src={publico.branding.logo_url}
-                alt=""
-                className="size-14 object-contain"
-              />
-            ) : (
-              <Cctv className="size-8 text-sidebar-primary" />
-            )}
-          </div>
-          <div className="text-center">
-            <h1 className="font-heading text-2xl font-semibold tracking-tight">
-              {nome}
-            </h1>
-            <p className="text-sm text-sidebar-foreground">{descricao}</p>
-          </div>
+        <div className="mb-8 flex flex-col items-center text-sidebar-accent-foreground">
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- logo externo por tenant, ou o padrão do produto
+            <img
+              src={logoUrl}
+              alt="CFTV Alesp"
+              className="size-40 object-contain sm:size-56"
+            />
+          ) : (
+            <Cctv className="size-16 text-sidebar-primary" />
+          )}
         </div>
         <LoginForm
           tenantSlug={publico ? t : undefined}

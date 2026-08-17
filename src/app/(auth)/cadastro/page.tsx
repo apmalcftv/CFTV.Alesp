@@ -4,7 +4,9 @@ import { getBrandingPublico } from "@/lib/branding-publico";
 import { BRANDING_PRODUTO } from "@/types/domain";
 import { CadastroForm } from "./cadastro-form";
 
-export const metadata: Metadata = { title: "Criar conta" };
+// title.absolute ignora o template "%s · Gestão de CFTV" do layout raiz —
+// aqui a marca é sempre CFTV Alesp, independente do nome neutro do produto.
+export const metadata: Metadata = { title: { absolute: "Criar conta - CFTV Alesp" } };
 
 export default async function CadastroPage({
   searchParams,
@@ -13,10 +15,10 @@ export default async function CadastroPage({
 }) {
   const { t } = await searchParams;
   const publico = await getBrandingPublico(t);
-  const nome =
-    publico?.branding?.nome_sistema ?? publico?.nome ?? BRANDING_PRODUTO.nome_sistema;
-  const descricao = publico?.branding?.descricao ?? BRANDING_PRODUTO.descricao;
   const corPrimaria = publico?.branding?.cores?.primary;
+  // Mesmo fallback do login: sem ?t=slug (ou com a RPC de branding público
+  // indisponível), cai na logo padrão do produto em vez do ícone genérico.
+  const logoUrl = publico?.branding?.logo_url ?? BRANDING_PRODUTO.logo_url;
 
   return (
     <main
@@ -36,27 +38,16 @@ export default async function CadastroPage({
         className="textura-pontos pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_800px_500px_at_50%_0%,black,transparent)]"
       />
       <div className="relative w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center gap-3 text-sidebar-accent-foreground">
-          <div className="flex size-14 items-center justify-center overflow-hidden rounded-2xl bg-sidebar-accent">
-            {publico?.branding?.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element -- logo externo por tenant
-              <img
-                src={publico.branding.logo_url}
-                alt=""
-                className="size-14 object-contain"
-              />
-            ) : (
-              <Cctv className="size-8 text-sidebar-primary" />
-            )}
-          </div>
-          <div className="text-center">
-            <h1 className="font-heading text-2xl font-semibold tracking-tight">
-              Criar conta
-            </h1>
-            <p className="text-sm text-sidebar-foreground">
-              {nome} · {descricao}
-            </p>
-          </div>
+        <div className="mb-8 flex flex-col items-center gap-4 text-sidebar-accent-foreground">
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- logo externo por tenant, ou o padrão do produto
+            <img src={logoUrl} alt="CFTV Alesp" className="size-28 object-contain" />
+          ) : (
+            <Cctv className="size-16 text-sidebar-primary" />
+          )}
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">
+            Criar conta
+          </h1>
         </div>
         <CadastroForm
           tenantSlug={publico ? t : undefined}

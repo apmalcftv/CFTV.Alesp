@@ -57,7 +57,11 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Tudo, exceto estáticos e imagens
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Tudo, exceto estáticos, imagens e os arquivos do PWA. O manifest e o
+    // Service Worker precisam responder mesmo sem sessão — é assim que o
+    // navegador decide se oferece "Instalar app" para quem ainda nem
+    // logou. Sem esta exclusão os dois caíam na regra de "sem usuário e
+    // rota não pública" e voltavam 307 para /login em vez do conteúdo.
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

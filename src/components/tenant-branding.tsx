@@ -19,7 +19,7 @@ export function textosDoBranding(tenant: TenantAtual | null) {
     descricao: b.descricao ?? BRANDING_PRODUTO.descricao,
     rodape: b.rodape ?? null,
     dominioEmail: b.dominio_email ?? null,
-    logoUrl: b.logo_url ?? null,
+    logoUrl: b.logo_url ?? BRANDING_PRODUTO.logo_url,
   };
 }
 

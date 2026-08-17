@@ -23,16 +23,20 @@ function Logo() {
   return (
     <Link
       href="/dashboard"
-      className="flex items-center gap-2.5 px-6 py-5 text-sidebar-accent-foreground"
+      className="flex items-center gap-3 px-6 py-5 text-sidebar-accent-foreground"
     >
-      <div className="flex size-9 items-center justify-center overflow-hidden rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-        {textos.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- logo externo por tenant
-          <img src={textos.logoUrl} alt="" className="size-9 object-contain" />
-        ) : (
-          <Cctv className="size-5" />
-        )}
-      </div>
+      {textos.logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- logo externo por tenant
+        <img
+          src={textos.logoUrl}
+          alt=""
+          className="size-12 shrink-0 rounded-lg object-contain"
+        />
+      ) : (
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+          <Cctv className="size-6" />
+        </div>
+      )}
       <div className="leading-tight">
         <div className="flex items-center gap-1.5 font-heading text-base font-semibold">
           <span
