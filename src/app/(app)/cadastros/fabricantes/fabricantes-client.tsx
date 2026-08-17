@@ -21,6 +21,7 @@ const colunas: ColunaCrud<Fabricante>[] = [
 export function FabricantesClient() {
   return (
     <PaginaCrud<Fabricante, Form>
+      recurso="cameras_fabricantes"
       titulo="Fabricantes"
       descricao="Fabricantes das câmeras (Intelbras, Hikvision, etc.)"
       hooks={hooksFabricantes}

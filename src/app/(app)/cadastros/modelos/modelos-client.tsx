@@ -30,6 +30,7 @@ export function ModelosClient() {
 
   return (
     <PaginaCrud<ModeloCamera, Form>
+      recurso="cameras_modelos"
       titulo="Modelos de câmera"
       descricao="Modelos de câmera por fabricante"
       hooks={hooksModelos}

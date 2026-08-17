@@ -47,6 +47,7 @@ const colunas: ColunaCrud<TipoDefeito>[] = [
 export function DefeitosClient() {
   return (
     <PaginaCrud<TipoDefeito, Form>
+      recurso="cameras_defeitos"
       titulo="Tipos de defeito"
       descricao="Categorias de defeito usadas na abertura de ocorrências. O status da câmera é aplicado automaticamente enquanto a OS estiver aberta."
       hooks={hooksTiposDefeito}

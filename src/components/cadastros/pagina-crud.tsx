@@ -15,8 +15,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { podeEditar } from "@/types/domain";
-import { usePerfil } from "@/components/perfil-provider";
+import { useMinhasPermissoes } from "@/hooks/use-permissoes";
 import { useOrdenacao } from "@/hooks/use-ordenacao";
 import { CabecalhoOrdenavel } from "@/components/ui/cabecalho-ordenavel";
 import { Ajuda } from "@/components/ui/ajuda";
@@ -86,6 +85,7 @@ interface HooksCrud<T> {
     (prédios, locais, fabricantes, modelos, NVRs, empresas, técnicos,
     tipos de defeito) — todos seguem o mesmo formato de tabela simples. */
 export function PaginaCrud<T extends { id: string }, F extends FieldValues>({
+  recurso,
   titulo,
   descricao,
   hooks,
@@ -103,6 +103,10 @@ export function PaginaCrud<T extends { id: string }, F extends FieldValues>({
   resumo,
   selecaoMassa,
 }: {
+  /** Recurso da matriz configurável que rege esta tela — cada cadastro
+      tem o seu. Espelha as policies da tabela correspondente; quem decide
+      de verdade é a RLS. */
+  recurso: string;
   titulo: string;
   descricao: string;
   hooks: HooksCrud<T>;
@@ -137,8 +141,10 @@ export function PaginaCrud<T extends { id: string }, F extends FieldValues>({
     acoesCabecalho?: (selecionados: T[]) => ReactNode;
   };
 }) {
-  const perfil = usePerfil();
-  const editavel = podeEditar(perfil.papel);
+  const { pode } = useMinhasPermissoes();
+  const podeExcluir = pode(recurso, "excluir");
+  // A coluna de ações da linha só existe se houver alguma ação nela.
+  const temAcoesNaLinha = pode(recurso, "editar") || podeExcluir;
 
   const { data, isPending } = hooks.useListar();
   const criar = hooks.useCriar();
@@ -243,9 +249,9 @@ export function PaginaCrud<T extends { id: string }, F extends FieldValues>({
           <p className="text-sm text-muted-foreground">{descricao}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {editavel && acoesExtras}
+          {pode(recurso, "criar") && acoesExtras}
           {selecaoMassa?.acoesCabecalho?.(selecionadosObjs)}
-          {editavel && (
+          {pode(recurso, "criar") && (
             <Ajuda texto={`Cadastrar novo registro em ${titulo.toLowerCase()}`}>
               <Button onClick={abrirNovo}>
                 <Plus className="size-4" />
@@ -320,7 +326,7 @@ export function PaginaCrud<T extends { id: string }, F extends FieldValues>({
                         )}
                       </TableHead>
                     ))}
-                    {editavel && <TableHead aria-label="Ações" />}
+                    {temAcoesNaLinha && <TableHead aria-label="Ações" />}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -340,7 +346,7 @@ export function PaginaCrud<T extends { id: string }, F extends FieldValues>({
                           {c.render(item)}
                         </TableCell>
                       ))}
-                      {editavel && (
+                      {temAcoesNaLinha && (
                         <TableCell className="w-10">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -353,15 +359,19 @@ export function PaginaCrud<T extends { id: string }, F extends FieldValues>({
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onSelect={() => abrirEdicao(item)}>
-                                <Pencil className="size-4" /> Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onSelect={() => setParaExcluir(item)}
-                              >
-                                <Trash2 className="size-4" /> Excluir
-                              </DropdownMenuItem>
+                              {pode(recurso, "editar") && (
+                                <DropdownMenuItem onSelect={() => abrirEdicao(item)}>
+                                  <Pencil className="size-4" /> Editar
+                                </DropdownMenuItem>
+                              )}
+                              {podeExcluir && (
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onSelect={() => setParaExcluir(item)}
+                                >
+                                  <Trash2 className="size-4" /> Excluir
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>

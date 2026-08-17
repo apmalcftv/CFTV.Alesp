@@ -32,6 +32,7 @@ export function NvrsClient() {
 
   return (
     <PaginaCrud<Nvr, Form>
+      recurso="cameras_nvrs"
       titulo="NVRs"
       descricao="Gravadores de vídeo em rede (NVRs) do circuito"
       hooks={hooksNvrs}

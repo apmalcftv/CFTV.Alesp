@@ -43,6 +43,7 @@ export function TecnicosClient() {
 
   return (
     <PaginaCrud<Tecnico, Form>
+      recurso="cameras_tecnicos"
       titulo="Técnicos"
       descricao="Técnicos das empresas de manutenção"
       hooks={hooksTecnicos}

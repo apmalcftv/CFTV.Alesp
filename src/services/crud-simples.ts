@@ -60,26 +60,57 @@ export function criarCrud<T extends { id: string }>(
       return data as unknown as T;
     },
 
+    // ATENÇÃO ao alterar os três métodos abaixo: eles pedem `.select("id")`
+    // e conferem quantas linhas voltaram, e isso não é enfeite.
+    //
+    // A RLS **não gera erro** em UPDATE e DELETE — ela FILTRA as linhas.
+    // Uma exclusão que o banco recusa volta com `error = null` e zero
+    // linhas afetadas. Sem esta conferência, o cliente entende que deu
+    // certo e mostra "registro excluído" para uma operação que o banco
+    // bloqueou. (INSERT é diferente: o `WITH CHECK` estoura de verdade.)
     async excluir(id: string): Promise<void> {
       const supabase = createClient();
-      const { error } = await supabase.from(tabela).delete().eq("id", id);
-      if (error) throw error;
+      const { data, error } = await supabase
+        .from(tabela)
+        .delete()
+        .eq("id", id)
+        .select("id");
+      if (error) throw traduzErro(error);
+      if (!data || data.length === 0) {
+        throw new Error("Nada foi excluído: você não tem permissão para esta ação.");
+      }
     },
 
-    async atualizarVarios(ids: string[], valores: Partial<T>): Promise<void> {
+    /** Devolve quantas linhas o banco realmente alterou — pode ser menos
+        que `ids.length` se a RLS filtrar parte da seleção. */
+    async atualizarVarios(ids: string[], valores: Partial<T>): Promise<number> {
       const supabase = createClient();
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from(tabela)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- sem Database gerado; ver dashboard.ts
         .update(valores as any)
-        .in("id", ids);
+        .in("id", ids)
+        .select("id");
       if (error) throw traduzErro(error);
+      if (!data || data.length === 0) {
+        throw new Error("Nada foi alterado: você não tem permissão para esta ação.");
+      }
+      return data.length;
     },
 
-    async excluirVarios(ids: string[]): Promise<void> {
+    /** Devolve quantas linhas o banco realmente excluiu. */
+    async excluirVarios(ids: string[]): Promise<number> {
       const supabase = createClient();
-      const { error } = await supabase.from(tabela).delete().in("id", ids);
-      if (error) throw error;
+      const { data, error } = await supabase
+        .from(tabela)
+        .delete()
+        .in("id", ids)
+        .select("id");
+      if (error) throw traduzErro(error);
+      if (!data || data.length === 0) {
+        throw new Error("Nada foi excluído: você não tem permissão para esta ação.");
+      }
+      return data.length;
     },
   };
 }

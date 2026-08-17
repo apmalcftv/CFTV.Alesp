@@ -62,9 +62,11 @@ export function criarHooksCrud<T extends { id: string }>(
     return useMutation({
       mutationFn: (p: { ids: string[]; valores: Partial<T> }) =>
         crud.atualizarVarios(p.ids, p.valores),
-      onSuccess: (_data, p) => {
+      // Reporta o que o banco realmente alterou, não o que foi pedido: a
+      // RLS pode filtrar parte da seleção sem gerar erro.
+      onSuccess: (afetados) => {
         queryClient.invalidateQueries({ queryKey: [chave] });
-        toast.success(`${p.ids.length} registro(s) atualizado(s)`);
+        toast.success(`${afetados} registro(s) atualizado(s)`);
       },
       onError: (e: Error) =>
         toast.error("Não foi possível salvar", { description: e.message }),
@@ -75,9 +77,9 @@ export function criarHooksCrud<T extends { id: string }>(
     const queryClient = useQueryClient();
     return useMutation({
       mutationFn: crud.excluirVarios,
-      onSuccess: (_data, ids) => {
+      onSuccess: (afetados) => {
         queryClient.invalidateQueries({ queryKey: [chave] });
-        toast.success(`${ids.length} registro(s) excluído(s)`);
+        toast.success(`${afetados} registro(s) excluído(s)`);
       },
       onError: (e: Error) =>
         toast.error("Não foi possível excluir", { description: e.message }),

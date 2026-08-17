@@ -36,14 +36,15 @@ import { crudTecnicos } from "@/services/cadastros";
 import { crudCameras } from "@/services/cameras";
 import { useTenant } from "@/components/tenant-branding";
 import { usePerfil } from "@/components/perfil-provider";
+import { useMinhasPermissoes } from "@/hooks/use-permissoes";
 import { urlAssinadaAnexo } from "@/services/ocorrencias";
 import {
   CAMERA_STATUS_LABEL,
   OCORRENCIA_STATUS_LABEL,
   PRIORIDADE_LABEL,
   SLA_OPCOES,
-  podeAtualizarOcorrencia,
-  podeEditar,
+
+
   type Anexo,
   type CameraStatus,
   type OcorrenciaStatus,
@@ -162,9 +163,13 @@ function IconeAnexo({ tipo }: { tipo: Anexo["tipo"] }) {
 function SecaoAnexos({
   ocorrenciaId,
   editavel,
+  podeExcluir,
 }: {
   ocorrenciaId: string;
+  /** `editar`: anexar. Não dá direito de apagar. */
   editavel: boolean;
+  /** `excluir`: ação independente na matriz, igual ao CMAL. */
+  podeExcluir: boolean;
 }) {
   const tenant = useTenant();
   const { data: anexos, isPending } = useAnexos(ocorrenciaId);
@@ -233,7 +238,7 @@ function SecaoAnexos({
                 >
                   {a.storage_path.split("/").pop()}
                 </button>
-                {editavel && (
+                {podeExcluir && (
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -324,6 +329,7 @@ function SecaoTimeline({
 export function DetalheOcorrenciaClient({ id }: { id: string }) {
   const router = useRouter();
   const perfil = usePerfil();
+  const { pode } = useMinhasPermissoes();
   const queryClient = useQueryClient();
   const { data: ocorrencia, isPending } = useOcorrencia(id);
   const { data: empresas } = hooksEmpresas.useListar();
@@ -365,7 +371,14 @@ export function DetalheOcorrenciaClient({ id }: { id: string }) {
     );
   }
 
-  const editavel = podeAtualizarOcorrencia(perfil, ocorrencia.empresa_id);
+  // Permissão E escopo, separados de propósito — era isto que a antiga
+  // `podeAtualizarOcorrencia` juntava num booleano só. A matriz diz se o
+  // papel pode editar OS; o escopo diz se ESTA OS é da empresa. A RLS
+  // aplica as duas condições da mesma forma.
+  const editavel =
+    pode("cameras_os", "editar") &&
+    (perfil.papel !== "empresa_contratada" ||
+      perfil.empresa_id === ocorrencia.empresa_id);
 
   const opcoesEmpresa = (empresas ?? []).map((e) => ({ valor: e.id, rotulo: e.nome }));
   const opcoesTecnico = (tecnicos ?? [])
@@ -403,7 +416,10 @@ export function DetalheOcorrenciaClient({ id }: { id: string }) {
     (ocorrencia.status === "em_andamento" || ocorrencia.status === "aguardando_aceite");
 
   const podeAssumir = ehEmpresaContratada && ocorrencia.status === "aberta";
-  const podeAceitarOuReprovar = podeEditar(perfil.papel) && ocorrencia.status === "aguardando_aceite";
+  const podeAceitarOuReprovar =
+    pode("cameras_os", "editar") &&
+    !ehEmpresaContratada &&
+    ocorrencia.status === "aguardando_aceite";
   const opcoesStatusForm = ehEmpresaContratada
     ? OPCOES_STATUS.filter((o) => o.valor === "em_andamento" || o.valor === "aguardando_aceite")
     : OPCOES_STATUS;
@@ -659,22 +675,42 @@ export function DetalheOcorrenciaClient({ id }: { id: string }) {
                       opcoes={OPCOES_PRIORIDADE}
                       disabled={ehEmpresaContratada}
                     />
-                    <CampoSelect
-                      control={form.control}
-                      name="empresa_id"
-                      label="Empresa (opcional)"
-                      placeholder="Selecione"
-                      opcoes={opcoesEmpresa}
-                    />
-                    <CampoComboboxCriavel
-                      control={form.control}
-                      name="tecnico_id"
-                      label="Técnico (opcional)"
-                      placeholder="Selecione ou crie o técnico"
-                      opcoes={opcoesTecnico}
-                      aoCriar={aoCriarTecnico}
-                      rotuloCriar={(termo) => `Cadastrar "${termo}" como novo técnico`}
-                    />
+                    {/* Empresa, Técnico e SLA são administrativos: a
+                        Empresa Contratada só opera a OS, não a administra.
+                        A proteção de verdade é o trigger
+                        valida_transicao_empresa() no banco — isto aqui só
+                        evita oferecer um controle que o banco vai recusar. */}
+                    {ehEmpresaContratada ? (
+                      <>
+                        <div className="text-sm">
+                          <p className="text-xs text-muted-foreground">Empresa</p>
+                          <p>{ocorrencia.empresa?.nome ?? "—"}</p>
+                        </div>
+                        <div className="text-sm">
+                          <p className="text-xs text-muted-foreground">Técnico</p>
+                          <p>{ocorrencia.tecnico?.nome ?? "—"}</p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <CampoSelect
+                          control={form.control}
+                          name="empresa_id"
+                          label="Empresa (opcional)"
+                          placeholder="Selecione"
+                          opcoes={opcoesEmpresa}
+                        />
+                        <CampoComboboxCriavel
+                          control={form.control}
+                          name="tecnico_id"
+                          label="Técnico (opcional)"
+                          placeholder="Selecione ou crie o técnico"
+                          opcoes={opcoesTecnico}
+                          aoCriar={aoCriarTecnico}
+                          rotuloCriar={(termo) => `Cadastrar "${termo}" como novo técnico`}
+                        />
+                      </>
+                    )}
                     <CampoTexto
                       control={form.control}
                       name="os_externa"
@@ -685,13 +721,25 @@ export function DetalheOcorrenciaClient({ id }: { id: string }) {
                       name="impedimento"
                       label="Impedimento (opcional)"
                     />
-                    <CampoSelect
-                      control={form.control}
-                      name="sla_horas"
-                      label="Prazo (SLA)"
-                      placeholder="Selecione"
-                      opcoes={OPCOES_SLA}
-                    />
+                    {ehEmpresaContratada ? (
+                      <div className="text-sm">
+                        <p className="text-xs text-muted-foreground">Prazo (SLA)</p>
+                        <p>
+                          {ocorrencia.sla_horas === null
+                            ? "Sem SLA"
+                            : OPCOES_SLA.find((o) => o.valor === String(ocorrencia.sla_horas))
+                                ?.rotulo ?? `${ocorrencia.sla_horas}h`}
+                        </p>
+                      </div>
+                    ) : (
+                      <CampoSelect
+                        control={form.control}
+                        name="sla_horas"
+                        label="Prazo (SLA)"
+                        placeholder="Selecione"
+                        opcoes={OPCOES_SLA}
+                      />
+                    )}
                     <Button type="submit" disabled={atualizar.isPending}>
                       {atualizar.isPending && (
                         <Loader2 className="size-4 animate-spin" />
@@ -737,7 +785,11 @@ export function DetalheOcorrenciaClient({ id }: { id: string }) {
             </CardContent>
           </Card>
 
-          <SecaoAnexos ocorrenciaId={id} editavel={editavel} />
+          <SecaoAnexos
+            ocorrenciaId={id}
+            editavel={editavel}
+            podeExcluir={pode("cameras_os", "excluir")}
+          />
         </div>
       </div>
 

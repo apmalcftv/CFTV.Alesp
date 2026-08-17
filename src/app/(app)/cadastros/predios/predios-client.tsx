@@ -23,6 +23,7 @@ const colunas: ColunaCrud<Predio>[] = [
 export function PrediosClient() {
   return (
     <PaginaCrud<Predio, Form>
+      recurso="cameras_predios"
       titulo="Prédios"
       descricao="Prédios do Complexo ALESP onde há câmeras instaladas"
       hooks={hooksPredios}

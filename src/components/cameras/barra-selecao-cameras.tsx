@@ -5,6 +5,7 @@ import { Building2, Factory, MapPin, Tag, Trash2, X } from "lucide-react";
 import { hooksCameras } from "@/hooks/use-cameras";
 import type { Camera } from "@/types/domain";
 import type { CatalogosCamera } from "@/services/exportar-cameras";
+import { useMinhasPermissoes } from "@/hooks/use-permissoes";
 import { AcoesExportarCameras } from "@/components/cameras/acoes-exportar-cameras";
 import { Button } from "@/components/ui/button";
 import {
@@ -117,6 +118,14 @@ export function BarraSelecaoCameras({
       partir deles, sem nenhuma consulta nova ao banco. */
   catalogos: CatalogosCamera;
 }) {
+  // Cada ação segue a sua própria permissão na matriz. As quatro de
+  // "Alterar" mudam dados da câmera, então exigem `editar`; excluir exige
+  // `excluir`. Exportar e compartilhar não passam por aqui de propósito:
+  // quem enxerga a lista pode extrair o que enxerga.
+  const { pode } = useMinhasPermissoes();
+  const podeAlterar = pode("cameras_inventario", "editar");
+  const podeExcluir = pode("cameras_inventario", "excluir");
+
   const atualizarVarios = hooksCameras.useAtualizarVarios();
   const excluirVarios = hooksCameras.useExcluirVarios();
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
@@ -139,34 +148,38 @@ export function BarraSelecaoCameras({
         Limpar seleção
       </Button>
       <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-        <AcaoEmMassa
-          titulo="Alterar status"
-          icone={Tag}
-          opcoes={opcoesStatus}
-          aplicando={atualizarVarios.isPending}
-          aoAplicar={(v) => aplicar("status", v)}
-        />
-        <AcaoEmMassa
-          titulo="Alterar empresa"
-          icone={Building2}
-          opcoes={opcoesEmpresa}
-          aplicando={atualizarVarios.isPending}
-          aoAplicar={(v) => aplicar("empresa_id", v)}
-        />
-        <AcaoEmMassa
-          titulo="Alterar modelo"
-          icone={Factory}
-          opcoes={opcoesModelo}
-          aplicando={atualizarVarios.isPending}
-          aoAplicar={(v) => aplicar("modelo_id", v)}
-        />
-        <AcaoEmMassa
-          titulo="Alterar local"
-          icone={MapPin}
-          opcoes={opcoesLocal}
-          aplicando={atualizarVarios.isPending}
-          aoAplicar={(v) => aplicar("local_id", v)}
-        />
+        {podeAlterar && (
+          <>
+            <AcaoEmMassa
+              titulo="Alterar status"
+              icone={Tag}
+              opcoes={opcoesStatus}
+              aplicando={atualizarVarios.isPending}
+              aoAplicar={(v) => aplicar("status", v)}
+            />
+            <AcaoEmMassa
+              titulo="Alterar empresa"
+              icone={Building2}
+              opcoes={opcoesEmpresa}
+              aplicando={atualizarVarios.isPending}
+              aoAplicar={(v) => aplicar("empresa_id", v)}
+            />
+            <AcaoEmMassa
+              titulo="Alterar modelo"
+              icone={Factory}
+              opcoes={opcoesModelo}
+              aplicando={atualizarVarios.isPending}
+              aoAplicar={(v) => aplicar("modelo_id", v)}
+            />
+            <AcaoEmMassa
+              titulo="Alterar local"
+              icone={MapPin}
+              opcoes={opcoesLocal}
+              aplicando={atualizarVarios.isPending}
+              aoAplicar={(v) => aplicar("local_id", v)}
+            />
+          </>
+        )}
 
         <AcoesExportarCameras
           selecionadas={selecionadas}
@@ -174,6 +187,7 @@ export function BarraSelecaoCameras({
           incluirCompartilhar
         />
 
+        {podeExcluir && (
         <AlertDialog open={confirmarExclusao} onOpenChange={setConfirmarExclusao}>
           <AlertDialogTrigger asChild>
             <Button variant="destructive" size="sm">
@@ -209,6 +223,7 @@ export function BarraSelecaoCameras({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        )}
       </div>
     </div>
   );

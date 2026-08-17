@@ -26,13 +26,15 @@ export interface NavItem {
   titulo: string;
   href: string;
   icone: LucideIcon;
-  /** Papéis que veem este item — todos os papéis aprovados, se omitido.
-      Modelo antigo, ainda usado pelos itens do módulo Câmeras. */
+  /** Papéis que veem este item. Sobrou só no índice de Cadastros, que é
+      uma porta para os 8 catálogos mais as áreas exclusivas do
+      Administrador (usuários, marca, permissões) — estas últimas ficam
+      fora da matriz por decisão de projeto. Cada catálogo tem guarda
+      própria por recurso na sua rota. */
   papeis?: readonly PapelUsuario[];
   /** Recurso da matriz configurável (Cadastros › Permissões). Quando
       presente, o item aparece se o usuário tiver `visualizar` nele, e
-      `papeis` é ignorado. Hoje só o módulo CMAL usa. Os dois modelos
-      convivem de propósito até o módulo Câmeras ser migrado. */
+      `papeis` é ignorado. */
   recurso?: string;
   /** Nível 1 — módulo de negócio (apenas apresentação) */
   modulo: ModuloSistema;
@@ -40,23 +42,20 @@ export interface NavItem {
   grupo: string;
 }
 
-const TODOS_MENOS_EMPRESA: PapelUsuario[] = [
-  "administrador",
-  "operador_cftc",
-  "fiscal_alesp",
-  "gestor",
-];
 
 // A ordem deste array define a ordem do menu. `SidebarNav` agrupa por
 // módulo e, dentro dele, por grupo — mantenha itens do mesmo par
 // (módulo, grupo) contíguos.
 export const NAV_ITEMS: NavItem[] = [
   // ---------- Operação e Análise de Câmeras ----------
+  // Desde a Fase 3 estes itens seguem a matriz configurável, pelo campo
+  // `recurso`, igual ao CMAL. Cada rota também tem guarda no servidor, e
+  // a RLS das tabelas consulta a mesma matriz.
   {
     titulo: "Dashboard Câmeras",
     href: "/dashboard",
     icone: LayoutDashboard,
-    papeis: TODOS_MENOS_EMPRESA,
+    recurso: "cameras_dashboard",
     modulo: "Operação e Análise de Câmeras",
     grupo: "Operação de Câmeras",
   },
@@ -64,16 +63,15 @@ export const NAV_ITEMS: NavItem[] = [
     titulo: "Câmeras",
     href: "/cameras",
     icone: Cctv,
-    papeis: ["administrador", "operador_cftc", "fiscal_alesp"],
+    recurso: "cameras_inventario",
     modulo: "Operação e Análise de Câmeras",
     grupo: "Operação de Câmeras",
   },
   {
-    // Único item sem `papeis`: a empresa contratada só enxerga esta tela,
-    // e a RLS já limita a leitura às OS da própria empresa.
     titulo: "OS/Câmeras",
     href: "/ocorrencias",
     icone: ClipboardList,
+    recurso: "cameras_os",
     modulo: "Operação e Análise de Câmeras",
     grupo: "Operação de Câmeras",
   },
@@ -81,7 +79,7 @@ export const NAV_ITEMS: NavItem[] = [
     titulo: "Executivo",
     href: "/executivo",
     icone: TrendingUp,
-    papeis: TODOS_MENOS_EMPRESA,
+    recurso: "cameras_executivo",
     modulo: "Operação e Análise de Câmeras",
     grupo: "Análise de Câmeras",
   },
@@ -89,7 +87,7 @@ export const NAV_ITEMS: NavItem[] = [
     titulo: "Relatórios de Câmeras",
     href: "/relatorios",
     icone: FileText,
-    papeis: TODOS_MENOS_EMPRESA,
+    recurso: "cameras_relatorios",
     modulo: "Operação e Análise de Câmeras",
     grupo: "Análise de Câmeras",
   },
@@ -97,7 +95,7 @@ export const NAV_ITEMS: NavItem[] = [
     titulo: "Notificações de Câmeras",
     href: "/notificacoes",
     icone: Bell,
-    papeis: ["administrador", "operador_cftc", "fiscal_alesp"],
+    recurso: "cameras_notificacoes",
     modulo: "Operação e Análise de Câmeras",
     grupo: "Análise de Câmeras",
   },

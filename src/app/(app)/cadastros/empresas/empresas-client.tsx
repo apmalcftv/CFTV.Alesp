@@ -41,6 +41,7 @@ const colunas: ColunaCrud<Empresa>[] = [
 export function EmpresasClient() {
   return (
     <PaginaCrud<Empresa, Form>
+      recurso="cameras_empresas"
       titulo="Empresas"
       descricao="Empresas terceirizadas de manutenção do CFTV"
       hooks={hooksEmpresas}

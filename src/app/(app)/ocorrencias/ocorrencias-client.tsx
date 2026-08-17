@@ -18,14 +18,14 @@ import { hooksTecnicos } from "@/hooks/use-cadastros";
 import { crudTecnicos } from "@/services/cadastros";
 import { diasParada, estaAberta } from "@/services/indicadores";
 import { useOrdenacao } from "@/hooks/use-ordenacao";
-import { usePerfil } from "@/components/perfil-provider";
+import { useMinhasPermissoes } from "@/hooks/use-permissoes";
 import {
   CAMERA_STATUS_LABEL,
   OCORRENCIA_STATUS_LABEL,
   PRIORIDADE_LABEL,
   SLA_OPCOES,
   STATUS_CAMERA_SEM_DEFEITO,
-  podeEditar,
+
   type Prioridade,
 } from "@/types/domain";
 import { cn } from "@/lib/utils";
@@ -304,7 +304,7 @@ const TODOS = "todos";
 
 export function OcorrenciasClient() {
   const router = useRouter();
-  const perfil = usePerfil();
+  const { pode } = useMinhasPermissoes();
   const searchParams = useSearchParams();
   const { data: ocorrencias, isPending } = useOcorrenciasDashboard();
   const { data: catalogos } = useCatalogos();
@@ -357,7 +357,7 @@ export function OcorrenciasClient() {
             Gestão de ordens de serviço do circuito de câmeras
           </p>
         </div>
-        {podeEditar(perfil.papel) && <NovaOcorrenciaDialog />}
+        {pode("cameras_os", "criar") && <NovaOcorrenciaDialog />}
       </div>
 
       <div className="flex flex-wrap gap-3">

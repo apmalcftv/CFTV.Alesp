@@ -31,6 +31,7 @@ export function LocaisClient() {
 
   return (
     <PaginaCrud<Local, Form>
+      recurso="cameras_locais"
       titulo="Locais"
       descricao="Locais dentro de cada prédio onde as câmeras estão instaladas"
       hooks={hooksLocais}

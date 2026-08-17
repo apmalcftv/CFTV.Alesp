@@ -257,6 +257,7 @@ export function CamerasClient() {
   return (
     <>
       <PaginaCrud<Camera, Form>
+      recurso="cameras_inventario"
         titulo="Câmeras"
         descricao="Inventário completo das câmeras do circuito"
         hooks={hooksCameras}

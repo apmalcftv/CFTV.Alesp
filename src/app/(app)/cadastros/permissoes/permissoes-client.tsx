@@ -187,7 +187,7 @@ function PermissoesConteudo() {
         <div className="flex-1">
           <h1 className="font-heading text-2xl font-semibold tracking-tight">Permissões</h1>
           <p className="text-sm text-muted-foreground">
-            Define o que cada perfil pode fazer no módulo CMAL
+            Define o que cada perfil pode fazer em cada módulo do sistema
           </p>
         </div>
       </div>
@@ -358,14 +358,23 @@ function MatrizPermissoes({
   alternar: (recurso: string, acao: AcaoPermissao, marcado: boolean) => void;
   desabilitado: boolean;
 }) {
-  // Agrupa por módulo › grupo, na mesma leitura do menu lateral.
-  const porGrupo = useMemo(() => {
-    const mapa = new Map<string, typeof recursos>();
+  // Dois níveis, na mesma leitura do menu lateral: módulo como cabeçalho
+  // de seção, grupo como card. Com mais de um módulo no catálogo, repetir
+  // "Módulo · Grupo" no título de cada card ficava ilegível.
+  //
+  // `recursos` já vem ordenado por `ordem`, e o catálogo mantém os itens
+  // de um mesmo par (módulo, grupo) contíguos — os Maps preservam a ordem
+  // de inserção, então a leitura sai na ordem do menu.
+  const porModulo = useMemo(() => {
+    const mapa = new Map<string, Map<string, typeof recursos>>();
     for (const r of recursos) {
-      const chave = `${r.modulo} · ${r.grupo}`;
-      mapa.set(chave, [...(mapa.get(chave) ?? []), r]);
+      const grupos = mapa.get(r.modulo) ?? new Map<string, typeof recursos>();
+      grupos.set(r.grupo, [...(grupos.get(r.grupo) ?? []), r]);
+      mapa.set(r.modulo, grupos);
     }
-    return [...mapa.entries()];
+    return [...mapa.entries()].map(
+      ([modulo, grupos]) => [modulo, [...grupos.entries()]] as const
+    );
   }, [recursos]);
 
   if (recursos.length === 0) {
@@ -379,8 +388,13 @@ function MatrizPermissoes({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {porGrupo.map(([grupo, itens]) => (
+    <div className="flex flex-col gap-8">
+      {porModulo.map(([modulo, grupos]) => (
+        <section key={modulo} className="flex flex-col gap-3">
+          <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            {modulo}
+          </h2>
+          {grupos.map(([grupo, itens]) => (
         <Card key={grupo}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">{grupo}</CardTitle>
@@ -413,7 +427,7 @@ function MatrizPermissoes({
                             texto={
                               r.tipo === "dado"
                                 ? "Tem dados próprios: a permissão vale também no banco, inclusive contra chamada direta à API."
-                                : "É uma tela sobre os dados de Relatórios de Ocorrências. A permissão controla o menu e o acesso à rota, não o acesso ao dado em si."
+                                : "É uma tela que lê dados de outro recurso do mesmo módulo. A permissão controla o menu e o acesso à rota, não o acesso ao dado em si."
                             }
                           >
                             <Badge
@@ -449,6 +463,8 @@ function MatrizPermissoes({
             </div>
           </CardContent>
         </Card>
+          ))}
+        </section>
       ))}
     </div>
   );
