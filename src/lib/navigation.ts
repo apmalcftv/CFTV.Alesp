@@ -1,5 +1,6 @@
 import {
   Bell,
+  BookOpen,
   Cctv,
   ClipboardList,
   FileSearch,
@@ -144,6 +145,17 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/cadastros",
     icone: FolderCog,
     papeis: ["administrador", "operador_cftc"],
+    modulo: "Sistema",
+    grupo: "Configuração",
+  },
+  // Sem `papeis` e sem `recurso` de propósito: visível para qualquer
+  // usuário autenticado e aprovado, independente da matriz de permissões
+  // ou de restrições por papel — inclusive Empresa Contratada, que não
+  // tem acesso a Cadastros.
+  {
+    titulo: "Manual do Sistema",
+    href: "/manual",
+    icone: BookOpen,
     modulo: "Sistema",
     grupo: "Configuração",
   },
